@@ -123,10 +123,3 @@ And possibly deploy to [Streamlit Cloud](https://streamlit.io/cloud).
 2. Make your improvements (e.g., new probability formulas, role chart visuals).  
 3. Submit a **Pull Request** or merge your branch.
 
-## 6) License
-
-*(Add whichever license you prefer, e.g. MIT, or remove if not needed.)*
-
----
-
-**Enjoy** your **Draft Wheel** application – whether as a **desktop GUI** or adapted to a **web** environment! If you have questions, [open an issue](https://github.com/YourUsername/YourDraftWheelRepo/issues) or contact the maintainer.
