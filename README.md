@@ -16,7 +16,7 @@ This is a **Draft Wheel** application that helps randomly allocate players to te
 ### A) Clone the Repository
 
 ```bash
-git clone https://github.com/YourUsername/YourDraftWheelRepo.git
+git clone https://github.com/charlesyapai/draft_wheel.git
 cd YourDraftWheelRepo
 ```
 
