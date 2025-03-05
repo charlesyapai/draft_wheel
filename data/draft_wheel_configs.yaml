@@ -4,14 +4,14 @@ player_data_csv: "data/players_data.csv"
 default_teams:
   - "Veteran Vanguards"
   - "Dusk Esports"
-  - "Radiant Rascals"
-  - "Dire Devils"
-  - "Sentinel Saviors"
-  - "Scourge Scoundrels"
+  - "Vanguard=15Armor"
+  - "Team Be Determined"
+
+
 
 ui_settings:
-  wheel_size: 700
-  text_font_size: 8
+  wheel_size: 900
+  text_font_size: 10
   text_font_type: "Arial"
   mmr_chart_width: 1000
   mmr_chart_height: 150

@@ -13,7 +13,7 @@ class MMRBucketChartView:
         self.text_font = text_font
 
         self.canvas = tk.Canvas(parent, width=width, height=height, bg=bg)
-        self.canvas.pack(side=tk.LEFT, padx=10, pady=5)
+        self.canvas.pack(side=tk.BOTTOM, padx=10, pady=5)
 
     def draw(self, stats: dict):
         """
@@ -115,7 +115,7 @@ class RoleDistributionChartView:
         self.text_font=text_font
 
         self.canvas= tk.Canvas(parent, width=width, height=height, bg=bg)
-        self.canvas.pack(side=tk.LEFT, padx=10, pady=5)
+        self.canvas.pack(side=tk.BOTTOM, padx=10, pady=5)
 
     def draw(self, stats:dict):
         """

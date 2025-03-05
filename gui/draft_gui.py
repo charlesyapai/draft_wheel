@@ -80,7 +80,7 @@ class DraftGUI:
         for r in self.logic.players_by_role:
             f= tk.Frame(self.left_frame, bd=2, relief=tk.RIDGE)
             f.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
-            lbl= tk.Label(f, text=r.upper(), font=(self.text_font_type,10,"bold"))
+            lbl= tk.Label(f, text=r.upper(), font=(self.text_font_type,9,"bold"))
             lbl.pack(side=tk.TOP)
             lb= tk.Listbox(f, height=8)
             lb.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -162,8 +162,8 @@ class DraftGUI:
         self.prob_tree= ttk.Treeview(self.prob_frame, columns=("player","prob"), show="headings", height=10)
         self.prob_tree.heading("player", text="Player")
         self.prob_tree.heading("prob", text="Probability")
-        self.prob_tree.column("player", width=120)
-        self.prob_tree.column("prob", width=80)
+        self.prob_tree.column("player", width=150)
+        self.prob_tree.column("prob", width=150)
         self.prob_tree.pack(fill=tk.BOTH, expand=False)
 
         # create chart objects
