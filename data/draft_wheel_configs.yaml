@@ -1,0 +1,33 @@
+global_average_mmr: 5000
+player_data_csv: "data/players_data.csv"
+
+default_teams:
+  - "Veteran Vanguards"
+  - "Dusk Esports"
+  - "Radiant Rascals"
+  - "Dire Devils"
+  - "Sentinel Saviors"
+  - "Scourge Scoundrels"
+
+ui_settings:
+  wheel_size: 700
+  text_font_size: 8
+  text_font_type: "Arial"
+  mmr_chart_width: 1000
+  mmr_chart_height: 150
+  role_chart_width: 1000
+  role_chart_height: 150
+
+roles:
+  - carry
+  - mid
+  - offlane
+  - soft_support
+  - hard_support
+
+randomness_levels:
+  0: 1.00
+  1: 0.90
+  2: 0.30
+  3: 0.20
+  4: 0.10
