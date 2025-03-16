@@ -1,10 +1,9 @@
 # draft_wheel/gui/charts.py
 
 import tkinter as tk
-
 class MMRBucketChartView:
     """
-    A separate chart class for MMR bucket distribution.
+    A separate chart class for MMR bucket distribution with improved visuals.
     """
     def __init__(self, parent, width=600, height=150, bg="#FFFFFF", text_font=("Arial",10,"bold")):
         self.width = width
@@ -12,97 +11,96 @@ class MMRBucketChartView:
         self.bg = bg
         self.text_font = text_font
 
-        self.canvas = tk.Canvas(parent, width=width, height=height, bg=bg)
+        self.canvas = tk.Canvas(parent, width=width, height=height, bg=bg, highlightthickness=1, highlightbackground="#CCC")
         self.canvas.pack(side=tk.BOTTOM, padx=10, pady=5)
 
     def draw(self, stats: dict):
-        """
-        stats => from logic.get_mmr_bucket_stats().
-        """
         self.canvas.delete("all")
         if not stats:
             return
 
-        # gather total counts
-        all_counts=[]
+        # background
+        self.canvas.create_rectangle(0, 0, self.width, self.height, fill=self.bg, outline="")
+
+        # gather data
+        all_counts = []
         for bucket_key, d in stats.items():
-            total = d["core_only"]+ d["support_only"]+ d["mixed"]
+            total = d["core_only"] + d["support_only"] + d["mixed"]
             all_counts.append(total)
         max_count = max(all_counts) if all_counts else 1
 
-        bar_width=40
-        gap=10
-        left_margin=50
-        base_line= self.height-30
-        scale_factor= (self.height-50)/max_count
+        bar_width = 40
+        gap = 10
+        left_margin = 50
+        base_line = self.height - 30
+        scale_factor = (self.height - 50) / max_count
 
-        c_core="#88C0D0"
-        c_support="#A3BE8C"
-        c_mixed="#EBCB8B"
+        c_core = "#82AEDC"
+        c_support = "#9CD08C"
+        c_mixed = "#EDCE88"
 
-        # draw bars
         buckets_list = list(stats.keys())
         for i, bucket_key in enumerate(buckets_list):
-            x_start= left_margin + i*(3*bar_width+ gap)
-            bdata= stats[bucket_key]
+            x_start = left_margin + i * (3 * bar_width + gap)
+            bdata = stats[bucket_key]
 
             # core
-            h_core= bdata["core_only"]* scale_factor
+            h_core = bdata["core_only"] * scale_factor
             self.canvas.create_rectangle(
                 x_start, base_line - h_core,
-                x_start+bar_width, base_line,
+                x_start + bar_width, base_line,
                 fill=c_core, outline="black"
             )
             self.canvas.create_text(
-                x_start+ bar_width/2, base_line - h_core-10,
-                text=str(bdata["core_only"]),
-                font=self.text_font
+                x_start + bar_width / 2, base_line - h_core - 10,
+                text=str(bdata["core_only"]), font=self.text_font
             )
 
             # support
-            x_supp= x_start+ bar_width
-            h_supp= bdata["support_only"]*scale_factor
+            x_supp = x_start + bar_width
+            h_supp = bdata["support_only"] * scale_factor
             self.canvas.create_rectangle(
                 x_supp, base_line - h_supp,
-                x_supp+bar_width, base_line,
+                x_supp + bar_width, base_line,
                 fill=c_support, outline="black"
             )
             self.canvas.create_text(
-                x_supp+ bar_width/2, base_line - h_supp -10,
-                text=str(bdata["support_only"]),
-                font=self.text_font
+                x_supp + bar_width / 2, base_line - h_supp - 10,
+                text=str(bdata["support_only"]), font=self.text_font
             )
 
             # mixed
-            x_mixed= x_supp+ bar_width
-            h_mixed= bdata["mixed"]* scale_factor
+            x_mixed = x_supp + bar_width
+            h_mixed = bdata["mixed"] * scale_factor
             self.canvas.create_rectangle(
                 x_mixed, base_line - h_mixed,
-                x_mixed+bar_width, base_line,
+                x_mixed + bar_width, base_line,
                 fill=c_mixed, outline="black"
             )
             self.canvas.create_text(
-                x_mixed+ bar_width/2, base_line - h_mixed-10,
-                text=str(bdata["mixed"]),
-                font=self.text_font
+                x_mixed + bar_width / 2, base_line - h_mixed - 10,
+                text=str(bdata["mixed"]), font=self.text_font
             )
 
             # label
             self.canvas.create_text(
-                x_start+1.5*bar_width, base_line+15,
-                text=bucket_key,
+                x_start + 1.5 * bar_width, base_line + 15, text=bucket_key,
                 font=(self.text_font[0], self.text_font[1], "bold")
             )
 
         # title
         self.canvas.create_text(
-            self.width//2, 15,
-            text="MMR Bucket Distribution",
-            font=(self.text_font[0], self.text_font[1]+1, "bold"),
-            fill="black"
+            self.width // 2, 15, text="MMR Bucket Distribution",
+            font=(self.text_font[0], self.text_font[1] + 1, "bold"), fill="black"
         )
 
-        # You can add a legend if you want.
+        # simple legend
+        legend_y = 20
+        legend_x = self.width - 130
+        for color, label in [(c_core, "Core"), (c_support, "Support"), (c_mixed, "Mixed")]:
+            self.canvas.create_rectangle(legend_x, legend_y - 10, legend_x + 15, legend_y + 5, fill=color, outline="black")
+            self.canvas.create_text(legend_x + 20, legend_y - 2, text=label, anchor="w", font=self.text_font)
+            legend_y += 20
 
 class RoleDistributionChartView:
     """

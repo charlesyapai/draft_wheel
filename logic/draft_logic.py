@@ -19,10 +19,16 @@ class DraftLogic:
         self.config = config
 
         # config values
-        self.global_average_mmr = config.get("global_average_mmr", 3000)
+        self.global_average_mmr = config.get("global_average_mmr", 6000)
         self.player_data_csv = config.get("player_data_csv", "players_data.csv")
         self.roles = config.get("roles", ["carry","mid","offlane","soft_support","hard_support"])
         self.randomness_levels = config.get("randomness_levels", {})
+        
+        # Example: read logistic settings safely
+        logistic_cfg = config.get("logistic_settings", {})
+        self.logistic_midpoint = logistic_cfg.get("midpoint", 1500.0)
+        self.logistic_slope = logistic_cfg.get("slope", 0.002)
+        self.blend_alpha = logistic_cfg.get("blend_alpha", 0.5)
 
         # role -> number for display
         self.role_to_number = {
@@ -147,7 +153,14 @@ class DraftLogic:
             all_players=self.all_players,
             players_in_role=players_in_role,
             global_average_mmr=self.global_average_mmr,
-            base_randomness=base_rand
+            base_randomness=base_rand,
+            team_size=self.config["team_size"],
+
+            # Extended config:
+            role_preference_weights=self.config["role_preference_weights"],
+            logistic_midpoint=self.config["logistic_settings"]["midpoint"],
+            logistic_slope=self.config["logistic_settings"]["slope"],
+            blend_alpha=self.config["logistic_settings"]["blend_alpha"]
         )
 
     def pick_player_from_position(self, team_id:str, role:str, position_pct:float, segments:List[tuple]) -> Optional[str]:
@@ -391,3 +404,59 @@ class DraftLogic:
                 data["average_mmr"]=0
 
         print("[LOAD] done")
+
+
+    # Displaying MMR stats in UI
+
+    def get_ideal_mmr_for_pick(self, team_id: str, role: str) -> float:
+        """
+        Return the 'ideal_mmr' for the next pick, based on the ratio-based approach.
+        If you already have this logic in 'compute_probabilities', you can store it
+        and return it here or replicate the simple formula.
+        """
+        team_data = self.teams[team_id]
+        current_n = len(team_data["players"])
+        team_size = self.config.get("team_size", 5)  # e.g. from YAML
+        if current_n >= team_size:
+            return 0.0
+
+        current_sum = team_data["average_mmr"] * current_n
+        desired_total_for_full_team = team_size * self.global_average_mmr
+        remaining_mmr = desired_total_for_full_team - current_sum
+        picks_left = team_size - current_n
+        if picks_left <= 0:
+            return 0.0
+
+        ideal_mmr = remaining_mmr / picks_left
+        return ideal_mmr
+
+    def get_pool_average_mmr(self) -> float:
+        """
+        Average MMR of all 'undrafted' players.
+        """
+        drafted_players = set()
+        for tinfo in self.teams.values():
+            for (pname, _) in tinfo["players"]:
+                drafted_players.add(pname)
+
+        undrafted = [p for p in self.all_players if p not in drafted_players]
+        if not undrafted:
+            return 0.0
+
+        total = sum(self.all_players[p]["mmr"] for p in undrafted)
+        return total / len(undrafted)
+
+    def get_drafted_average_mmr(self) -> float:
+        """
+        Average MMR of all players currently on teams.
+        """
+        drafted_list = []
+        for tinfo in self.teams.values():
+            for (pname, _) in tinfo["players"]:
+                drafted_list.append(pname)
+
+        if not drafted_list:
+            return 0.0
+
+        total = sum(self.all_players[p]["mmr"] for p in drafted_list)
+        return total / len(drafted_list)

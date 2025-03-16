@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 import random
 import os
-
+import math
 from PIL import Image, ImageTk
 
 # import the chart classes
@@ -154,17 +154,38 @@ class DraftGUI:
                                      height=self.scale_height, bg="white")
         self.scale_canvas.pack(side=tk.LEFT, padx=10, pady=5)
 
-        self.prob_frame= tk.Frame(self.scale_prob_frame, bg="#EEEEEE")
-        self.prob_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10)
-        tk.Label(self.prob_frame, text="Probabilities", bg="#EEEEEE",
-                 font=(self.text_font_type,10,"bold")).pack(anchor="w")
 
-        self.prob_tree= ttk.Treeview(self.prob_frame, columns=("player","prob"), show="headings", height=10)
+        # [NEW CODE] - Add a canvas for the sigmoid/ratio curve
+        self.sigmoid_canvas = tk.Canvas(self.scale_prob_frame, width=300, height=200, bg="white")
+        self.sigmoid_canvas.pack(side=tk.LEFT, padx=10, pady=5)
+
+        # [NEW CODE] - A label to show the pool vs. drafted MMR averages
+        self.stats_label_var = tk.StringVar(value="Pool Avg: ?, Drafted Avg: ?")
+        self.stats_label = tk.Label(self.top_center_frame, textvariable=self.stats_label_var,
+                                    bg="#DDDDDD", font=(self.text_font_type, 10, "bold"))
+        self.stats_label.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=2)
+
+        self.prob_frame = tk.Frame(self.scale_prob_frame, bg="#EEEEEE")
+        self.prob_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10)
+
+        tk.Label(self.prob_frame, text="Probabilities", bg="#EEEEEE",
+                 font=(self.text_font_type, 10, "bold")).pack(anchor="w")
+
+        # [MODIFIED CODE] - Add columns for MMR and Diff
+        self.prob_tree = ttk.Treeview(self.prob_frame, columns=("player", "mmr", "diff", "prob"),
+                                      show="headings", height=10)
         self.prob_tree.heading("player", text="Player")
+        self.prob_tree.heading("mmr", text="MMR")
+        self.prob_tree.heading("diff", text="Diff")
         self.prob_tree.heading("prob", text="Probability")
-        self.prob_tree.column("player", width=150)
-        self.prob_tree.column("prob", width=150)
+
+        self.prob_tree.column("player", width=120)
+        self.prob_tree.column("mmr", width=60)
+        self.prob_tree.column("diff", width=60)
+        self.prob_tree.column("prob", width=80)
         self.prob_tree.pack(fill=tk.BOTH, expand=False)
+
+
 
         # create chart objects
         self.mmr_chart= MMRBucketChartView(
@@ -297,6 +318,169 @@ class DraftGUI:
 
         base_random= self._get_base_randomness(team_id)
         self.randomness_label_var.set(f"Randomness: {base_random:.2f}")
+
+
+        # [NEW CODE] - Gather 'ideal_mmr' for display
+        ideal_mmr = self.logic.get_ideal_mmr_for_pick(team_id, actual_role)
+
+        # [NEW CODE] - Show pool vs drafted MMR averages
+        pool_avg = self.logic.get_pool_average_mmr()
+        drafted_avg = self.logic.get_drafted_average_mmr()
+        self.stats_label_var.set(f"Pool Avg: {int(pool_avg)}  |  Drafted Avg: {int(drafted_avg)}")
+
+        # Calculate probabilities
+        probs = self.logic.compute_probabilities(team_id, actual_role)
+        if not probs:
+            self.scale_canvas.delete("all")
+            self.sigmoid_canvas.delete("all")  # clear the sigmoid canvas as well
+            for item in self.prob_tree.get_children():
+                self.prob_tree.delete(item)
+            return
+
+        # Clear old items
+        for item in self.prob_tree.get_children():
+            self.prob_tree.delete(item)
+        self.player_colors.clear()
+        self.scale_segments = []
+
+        # 1) Build data (player, mmr, diff, prob) and sort by MMR
+        data_list = []
+        for p, prob_val in probs.items():
+            pm = self.logic.all_players[p]["mmr"]
+            diff_val = abs(pm - ideal_mmr)
+            data_list.append((p, pm, diff_val, prob_val))
+        # Sort by MMR ascending (change to descending if you prefer)
+        data_list.sort(key=lambda x: x[1])
+
+        # 2) Populate the Treeview in sorted order
+        idx = 0
+        total_prob = sum(x[3] for x in data_list)
+        current_angle = 0.0  # used for the scale drawing
+        for (p, pm, diff_val, prob_val) in data_list:
+            prob_pct = prob_val * 100.0
+            prob_str = f"{prob_pct:.1f}%"
+
+            # color
+            color = self._team_color(idx)
+            self.player_colors[p] = color
+
+            # Insert row into tree
+            style_name = f"ColorStyle_{idx}"
+            s = ttk.Style()
+            s.configure(style_name, background=color,
+                        font=(self.text_font_type, self.text_font_size, "bold"))
+
+            row_id = self.prob_tree.insert("", "end", values=(p, int(pm), int(diff_val), prob_str))
+            self.prob_tree.item(row_id, tags=(style_name,))
+            self.prob_tree.tag_configure(style_name, background=color)
+
+            idx += 1
+
+        # 3) Build scale segments (like before) for the main wheel canvas
+        segs = self.build_segments(probs)
+        self.scale_segments = segs
+        self.draw_scale(segs)
+
+        # 4) Draw the sigmoid/ratio curve on self.sigmoid_canvas
+        self.draw_sigmoid_curve(self.sigmoid_canvas, data_list, ideal_mmr)
+
+    def draw_sigmoid_curve(self, canvas, data_list, ideal_mmr):
+        """
+        [NEW CODE]
+        Draw a basic logistic-like curve from ratio=0 to ratio=some max,
+        and then plot each player's (ratio, weight) point in matching color.
+
+        data_list: list of (playerName, mmr, diff, prob)
+        """
+        canvas.delete("all")
+
+        # If you have a known logistic function, you can replicate it here.
+        # For example, if midpoint=0.1, slope=5.0, then we do:
+        midpoint = self.config["logistic_settings"].get("midpoint", 0.1)
+        slope = self.config["logistic_settings"].get("slope", 5.0)
+
+        # Canvas dimensions
+        w = int(canvas["width"])
+        h = int(canvas["height"])
+
+        # We'll sample ratio from 0..(some max) in small steps
+        # Let's find max ratio from the data. Or pick 2.0 if large.
+        max_ratio = 0.0
+        for (_, pm, diff_val, _) in data_list:
+            if ideal_mmr > 0:
+                r = diff_val / ideal_mmr
+                if r > max_ratio:
+                    max_ratio = r
+        if max_ratio < 0.2:
+            max_ratio = 0.2  # minimal range
+        margin_ratio = 0.1 * max_ratio
+        max_ratio += margin_ratio
+
+        def logistic_fn(ratio):
+            return 1.0 / (1.0 + math.exp(slope * (ratio - midpoint)))
+
+        # Draw X and Y axes
+        x_axis_pad = 40
+        y_axis_pad = 20
+        canvas.create_line(x_axis_pad, h-y_axis_pad, w-10, h-y_axis_pad, fill="black")  # X axis
+        canvas.create_line(x_axis_pad, h-y_axis_pad, x_axis_pad, 10, fill="black")      # Y axis
+
+        # We'll map ratio in [0..max_ratio] to X in [x_axis_pad..(w-50)]
+        # We'll map logistic in [0..1] to Y in [h-y_axis_pad..someTop]
+        def to_canvas_coords(ratio, val):
+            # ratio => X
+            x_min = x_axis_pad
+            x_max = w - 50
+            ratio_frac = ratio / max_ratio
+            cx = x_min + (x_max - x_min) * ratio_frac
+
+            # logistic => Y ( invert so 1.0 is near the top )
+            y_min = 10
+            y_max = h - y_axis_pad
+            # val is in [0..1], so we flip
+            cy = y_max - (y_max - y_min) * val
+            return (cx, cy)
+
+        # Plot the curve
+        prev_x, prev_y = None, None
+        steps = 100
+        for i in range(steps+1):
+            r = (max_ratio / steps) * i
+            val = logistic_fn(r)
+            cx, cy = to_canvas_coords(r, val)
+            if i > 0:
+                canvas.create_line(prev_x, prev_y, cx, cy, fill="blue")
+            prev_x, prev_y = cx, cy
+
+        # Plot the data points
+        for (p, pm, diff_val, prob_val) in data_list:
+            if ideal_mmr <= 0:
+                continue
+            ratio = diff_val / ideal_mmr
+            lw = logistic_fn(ratio)
+
+            (cx, cy) = to_canvas_coords(ratio, lw)
+            radius = 4
+            color = self.player_colors.get(p, "red")
+            canvas.create_oval(cx - radius, cy - radius, cx + radius, cy + radius, fill=color)
+
+            # Optionally label them
+            canvas.create_text(cx, cy - 10, text=p, fill=color, font=(self.text_font_type, 8, "bold"))
+
+    def build_segments(self, probs_dict):
+        """
+        Same logic you had before for building the slices for the wheel.
+        This returns a list of (player, startAngle, endAngle in degrees * 100).
+        """
+        segs = []
+        acc = 0.0
+        for p, val in probs_dict.items():
+            deg = val*100.0
+            segs.append((p, acc, acc+deg))
+            acc += deg
+        return segs
+
+
 
         probs= self.logic.compute_probabilities(team_id, actual_role)
         if not probs:
@@ -538,7 +722,7 @@ class DraftGUI:
             popup.destroy()
         ttk.Button(popup, text="Confirm",style="Normal.TButton", command=confirm).pack(side=tk.TOP, pady=10)
 
-    # UTILS
+    # # UTILS
     def _get_base_randomness(self, team_id:str)->float:
         teams_data=self.logic.get_teams_data()
         if team_id not in teams_data:
@@ -546,9 +730,15 @@ class DraftGUI:
         n=len(teams_data[team_id]["players"])
         return self.logic.randomness_levels.get(n,0.30)
 
-    def _team_color(self, idx=0):
-        random.seed(idx)
-        r=random.randint(100,255)
-        g=random.randint(100,255)
-        b=random.randint(100,255)
-        return f"#{r:02x}{g:02x}{b:02x}"
+    # def _team_color(self, idx=0):
+    #     random.seed(idx)
+    #     r=random.randint(100,255)
+    #     g=random.randint(100,255)
+    #     b=random.randint(100,255)
+    #     return f"#{r:02x}{g:02x}{b:02x}"
+
+
+    def _team_color(self, idx: int):
+        # Your existing logic for color generation or cycling
+        base_colors = ["#FFD700","#ADFF2F","#40E0D0","#FF69B4","#FF7F50","#9ACD32","#9370DB","#FFB6C1"]
+        return base_colors[idx % len(base_colors)]
