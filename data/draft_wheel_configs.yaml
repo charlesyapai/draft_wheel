@@ -14,10 +14,12 @@ ui_settings:
   wheel_size: 900
   text_font_size: 10
   text_font_type: "Arial"
-  mmr_chart_width: 1000
-  mmr_chart_height: 150
-  role_chart_width: 1000
-  role_chart_height: 150
+  mmr_chart_width: 900
+  mmr_chart_height: 120
+  role_chart_width: 800
+  role_chart_height: 120
+  sigmoid_chart_height: 300
+  sigmoid_chart_height: 200
 
 roles:
   - carry

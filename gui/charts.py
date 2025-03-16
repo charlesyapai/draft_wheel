@@ -89,10 +89,10 @@ class MMRBucketChartView:
             )
 
         # title
-        self.canvas.create_text(
-            self.width // 2, 15, text="MMR Bucket Distribution",
-            font=(self.text_font[0], self.text_font[1] + 1, "bold"), fill="black"
-        )
+        # self.canvas.create_text(
+        #     self.width // 2, 15, text="MMR Bucket Distribution",
+        #     font=(self.text_font[0], self.text_font[1] + 1, "bold"), fill="black"
+        # )
 
         # simple legend
         legend_y = 20
@@ -183,11 +183,21 @@ class RoleDistributionChartView:
                 font=(self.text_font[0], self.text_font[1]+1, "bold")
             )
 
+        # legend
+        legend_y = 20
+        legend_x = self.width - 130
+        
+        # Legend entries
+        self.canvas.create_rectangle(legend_x, legend_y, legend_x + 15, legend_y + 15, fill=color_count, outline="black")
+        self.canvas.create_text(legend_x + 25, legend_y + 8, text="Count", anchor="w", font=self.text_font)
+        
+        self.canvas.create_rectangle(legend_x, legend_y + 25, legend_x + 15, legend_y + 40, fill=color_mmr, outline="black")
+        self.canvas.create_text(legend_x + 25, legend_y + 33, text="Avg MMR", anchor="w", font=self.text_font)
         # title
-        self.canvas.create_text(
-            self.width//2, 20,
-            text="Role Distribution",
-            font=(self.text_font[0], self.text_font[1]+2, "bold"),
-            fill="black"
-        )
+        # self.canvas.create_text(
+        #     self.width//2, 20,
+        #     text="Role Distribution",
+        #     font=(self.text_font[0], self.text_font[1]+2, "bold"),
+        #     fill="black"
+        # )
         # optional legend, etc.
