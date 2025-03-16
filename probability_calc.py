@@ -73,9 +73,9 @@ def get_role_preference_factor(player_info: Dict[str, Any], role: str) -> float:
     for (rname, prio) in roles_list:
         if rname == role:
             if prio == 1:
-                return 1.0
+                return 0.9
             elif prio == 2:
-                return 0.66
+                return 0.6
             elif prio == 3:
-                return 0.33
+                return 0.1
     return 0.0
