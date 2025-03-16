@@ -1,11 +1,13 @@
-global_average_mmr: 5000
+global_average_mmr: 5946
 player_data_csv: "data/players_data.csv"
 
 default_teams:
-  - "Veteran Vanguards"
-  - "Dusk Esports"
-  - "Vanguard=15Armor"
-  - "Team Be Determined"
+  - "D15RUPT0R"
+  - "aegis197"
+  - "reonasimp"
+  - "Princeamman 👑"
+  - "byentdotes"
+  - "ben"
 
 
 
@@ -27,7 +29,7 @@ roles:
 
 randomness_levels:
   0: 1.00
-  1: 0.90
+  1: 0.40
   2: 0.30
-  3: 0.20
-  4: 0.10
+  3: 0.10
+  4: 0.05
