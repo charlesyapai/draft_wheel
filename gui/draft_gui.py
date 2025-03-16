@@ -63,13 +63,14 @@ class DraftGUI:
         self.top_center_frame= tk.Frame(self.center_frame, bg="#DDDDDD")
         self.top_center_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
-        # next => MMR bucket chart
-        self.mmr_bucket_chart_frame= tk.Frame(self.center_frame, bg="#EEEEEE")
-        self.mmr_bucket_chart_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+        # # # next => MMR bucket chart
+        # # self.mmr_bucket_ch        # next => MMR bucket chart
+        # self.mmr_bucket_chart_frame= tk.Frame(self.center_frame, bg="#EEEEEE")
+        # self.mmr_bucket_chart_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
-        # next => role chart
-        self.role_chart_frame= tk.Frame(self.center_frame, bg="#EEEEEE")
-        self.role_chart_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+        # # next => role chart
+        # self.role_chart_frame= tk.Frame(self.center_frame, bg="#EEEEEE")
+        # self.role_chart_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
         # bottom => banner
         self.bottom_banner_frame= tk.Frame(self.center_frame, bg="#CCCCCC")
@@ -155,9 +156,9 @@ class DraftGUI:
         self.scale_canvas.pack(side=tk.LEFT, padx=10, pady=5)
 
 
-        # [NEW CODE] - Add a canvas for the sigmoid/ratio curve
-        self.sigmoid_canvas = tk.Canvas(self.scale_prob_frame, width=300, height=200, bg="white")
-        self.sigmoid_canvas.pack(side=tk.LEFT, padx=10, pady=5)
+        # # [NEW CODE] - Add a canvas for the sigmoid/ratio curve
+        # self.sigmoid_canvas = tk.Canvas(self.scale_prob_frame, width=300, height=200, bg="white")
+        # self.sigmoid_canvas.pack(side=tk.LEFT, padx=10, pady=5)
 
         # [NEW CODE] - A label to show the pool vs. drafted MMR averages
         self.stats_label_var = tk.StringVar(value="Pool Avg: ?, Drafted Avg: ?")
@@ -185,21 +186,60 @@ class DraftGUI:
         self.prob_tree.column("prob", width=80)
         self.prob_tree.pack(fill=tk.BOTH, expand=False)
 
+        text_font=(self.text_font_type, self.text_font_size,"bold")
 
 
-        # create chart objects
-        self.mmr_chart= MMRBucketChartView(
+
+
+        # 1) Main container for all bottom charts
+        self.bottom_charts_frame = tk.Frame(self.center_frame, bg="#EEEEEE")
+        self.bottom_charts_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        # 2) A left panel to stack MMR & Role charts
+        self.charts_left_panel = tk.Frame(self.bottom_charts_frame, bg="#EEEEEE")
+        self.charts_left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # 3) A right panel for the Sigmoid chart
+        self.sigmoid_chart_frame = tk.Frame(self.bottom_charts_frame, bg="#EEEEEE")
+        self.sigmoid_chart_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # 4) Inside the left panel, we create two frames for each chart:
+        #    a) MMR bucket chart frame (TOP)
+        #    b) Role distribution chart frame (BOTTOM)
+
+        # a) MMR bucket chart frame
+        self.mmr_bucket_chart_frame = tk.Frame(self.charts_left_panel, bg="#EEEEEE")
+        self.mmr_bucket_chart_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=5)
+
+        # b) Role distribution chart frame
+        self.role_chart_frame = tk.Frame(self.charts_left_panel, bg="#EEEEEE")
+        self.role_chart_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=5)
+
+        # 5) Create the actual chart objects in those frames
+        ui = self.config.get("ui_settings", {})
+        self.mmr_chart = MMRBucketChartView(
             self.mmr_bucket_chart_frame,
-            width=ui.get("mmr_chart_width",600),
-            height=ui.get("mmr_chart_height",150),
-            text_font=(self.text_font_type, self.text_font_size,"bold")
+            width=ui.get("mmr_chart_width", 600),
+            height=ui.get("mmr_chart_height", 150),
+            text_font=(self.text_font_type, self.text_font_size, "bold")
         )
-        self.role_chart= RoleDistributionChartView(
+        self.role_chart = RoleDistributionChartView(
             self.role_chart_frame,
-            width=ui.get("role_chart_width",600),
-            height=ui.get("role_chart_height",180),
-            text_font=(self.text_font_type, self.text_font_size,"bold")
+            width=ui.get("role_chart_width", 600),
+            height=ui.get("role_chart_height", 180),
+            text_font=(self.text_font_type, self.text_font_size, "bold")
         )
+
+        # 6) The Sigmoid canvas (centered)
+        self.sigmoid_canvas = tk.Canvas(
+            self.sigmoid_chart_frame,
+            width=300,
+            height=200,
+            bg="white"
+        )
+        self.sigmoid_canvas.pack(side=tk.LEFT, anchor="sw", fill=tk.BOTH, expand=True, padx=15, pady=20)
+
+
 
         # banner
         banner_path="banner.png"
@@ -303,6 +343,7 @@ class DraftGUI:
     # PREVIEW / SPIN
     def preview_slices(self):
         team_id=self.team_var.get()
+        self.team_id = team_id
         role=self.role_var.get()
         if team_id not in self.logic.get_teams_data():
             return
@@ -479,8 +520,6 @@ class DraftGUI:
             segs.append((p, acc, acc+deg))
             acc += deg
         return segs
-
-
 
         probs= self.logic.compute_probabilities(team_id, actual_role)
         if not probs:
@@ -730,7 +769,7 @@ class DraftGUI:
         n=len(teams_data[team_id]["players"])
         return self.logic.randomness_levels.get(n,0.30)
 
-    # def _team_color(self, idx=0):
+    # def _te# _color(self, idx=0):
     #     random.seed(idx)
     #     r=random.randint(100,255)
     #     g=random.randint(100,255)
