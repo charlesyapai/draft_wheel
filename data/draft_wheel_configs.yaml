@@ -1,4 +1,5 @@
 global_average_mmr: 5946
+team_size: 5
 player_data_csv: "data/players_data.csv"
 
 default_teams:
@@ -10,16 +11,6 @@ default_teams:
   - "ben"
 
 
-
-ui_settings:
-  wheel_size: 900
-  text_font_size: 10
-  text_font_type: "Arial"
-  mmr_chart_width: 1000
-  mmr_chart_height: 150
-  role_chart_width: 1000
-  role_chart_height: 150
-
 roles:
   - carry
   - mid
@@ -29,7 +20,66 @@ roles:
 
 randomness_levels:
   0: 1.00
-  1: 0.40
-  2: 0.30
-  3: 0.10
-  4: 0.05
+  1: 0.10
+  2: 0.05
+  3: 0.02
+  4: 0.01
+
+role_preference_weights:
+  1: 0.9
+  2: 0.7
+  3: 0.1
+
+logistic_settings:
+  midpoint: 0.3  # ratio at which logistic ~ 0.5
+  slope: 20.0     # steeper slope => sharper drop around midpoint
+  blend_alpha: 0.8 # 1 for all MMR weights, 0 for all role weights
+
+
+
+
+
+
+# ========================
+#     UI Settings
+# ========================
+ui_settings:
+  # Fonts
+  text_font_type: "Arial"
+  text_font_size: 10
+  header_font_size: 12
+  button_font_size: 11
+  
+  # Colors
+  main_bg_color: "#F5F5F5"
+  frame_bg_color: "#EEEEEE"
+  controls_bg_color: "#DDDDDD"
+  button_select_color: "#FFD700"
+  pointer_color: "red"
+  
+  # Dimensions
+  wheel_size: 900
+  wheel_height: 200
+  mmr_chart_width: 900
+  mmr_chart_height: 150
+  role_chart_width: 800
+  role_chart_height: 120
+  sigmoid_chart_width: 400
+  sigmoid_chart_height: 250
+  
+  # Layout
+  padding: 5
+  button_padding: 5
+  left_panel_weight: 1
+  center_panel_weight: 3
+  right_panel_weight: 1
+  
+  # Team colors
+  team_colors: ["#FFD700", "#ADFF2F", "#40E0D0", "#FF69B4", "#FF7F50", "#9ACD32", "#9370DB", "#FFB6C1"]
+
+  # Role button settings
+  role_button_font_type: "Segoe UI"  # Or try: "Verdana", "Roboto", "Helvetica Neue"
+  role_button_font_size: 12
+  role_button_padding: 2
+  role_button_width: 5
+  role_button_spacing: 1
