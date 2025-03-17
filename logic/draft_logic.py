@@ -26,9 +26,9 @@ class DraftLogic:
         
         # Example: read logistic settings safely
         logistic_cfg = config.get("logistic_settings", {})
-        self.logistic_midpoint = logistic_cfg.get("midpoint", 1500.0)
-        self.logistic_slope = logistic_cfg.get("slope", 0.002)
-        self.blend_alpha = logistic_cfg.get("blend_alpha", 0.5)
+        self.logistic_midpoint = logistic_cfg.get("midpoint")
+        self.logistic_slope = logistic_cfg.get("slope")
+        self.blend_alpha = logistic_cfg.get("blend_alpha", 0.7)
 
         # role -> number for display
         self.role_to_number = {
