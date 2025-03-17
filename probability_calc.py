@@ -24,7 +24,7 @@ def compute_probabilities(
     role_preference_weights: Dict[int, float],
     logistic_midpoint: float,
     logistic_slope: float,
-    blend_alpha: float = 1.0
+    blend_alpha: float = 0.7
 ) -> Dict[str, float]:
     """
     Compute final probabilities for each available player in `players_in_role`.
