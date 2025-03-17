@@ -1,5 +1,3 @@
-# Modifications to make DraftGUI resizable
-
 import tkinter as tk
 from tkinter import ttk
 import random
@@ -45,14 +43,28 @@ class DraftGUI:
                         foreground="black")
 
         self.friction_var = tk.DoubleVar(value=0.99)
+        # Variable to track banner visibility
+        self.banner_visible = tk.BooleanVar(value=True)
 
         # Use PanedWindow for main layout to allow resizing
         self.main_paned = ttk.PanedWindow(master, orient=tk.HORIZONTAL)
         self.main_paned.pack(fill=tk.BOTH, expand=True)
 
         # Layout - use PanedWindow to let users resize sections
-        self.left_frame = tk.Frame(self.main_paned)
-        self.main_paned.add(self.left_frame, weight=1)
+        # Left frame now uses Canvas with scrollbar for resizable role pools
+        self.left_frame_container = tk.Frame(self.main_paned)
+        self.main_paned.add(self.left_frame_container, weight=1)
+        
+        # Create a canvas for the left frame to make it scrollable
+        self.left_canvas = tk.Canvas(self.left_frame_container, bg="#F5F5F5")
+        self.left_scrollbar = ttk.Scrollbar(self.left_frame_container, orient=tk.VERTICAL, 
+                                           command=self.left_canvas.yview)
+        self.left_canvas.configure(yscrollcommand=self.left_scrollbar.set)
+        
+        self.left_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.left_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # We'll create the content frame in the build_role_list method later
 
         # Center pane
         self.center_frame = tk.Frame(self.main_paned, bg="#EEEEEE")
@@ -89,50 +101,131 @@ class DraftGUI:
         self.center_frame.rowconfigure(0, weight=0)  # Top controls
         self.center_frame.rowconfigure(1, weight=1)  # Scale and probs
         self.center_frame.rowconfigure(2, weight=2)  # Charts
-        self.center_frame.rowconfigure(3, weight=0)  # Banner
         self.center_frame.columnconfigure(0, weight=1)
 
         # Top controls frame
         self.top_center_frame = tk.Frame(self.center_frame, bg="#DDDDDD")
         self.top_center_frame.grid(row=0, column=0, sticky="ew", pady=5)
 
-        # Scale and probability frame
-        self.scale_prob_frame = tk.Frame(self.center_frame, bg="#EEEEEE")
+        # Add banner toggle checkbox
+        self.banner_toggle = ttk.Checkbutton(
+            self.top_center_frame, 
+            text="Show Banner", 
+            variable=self.banner_visible,
+            command=self.toggle_banner
+        )
+        self.banner_toggle.pack(side=tk.RIGHT, padx=10)
+
+        # Stats label
+        self.stats_label_var = tk.StringVar(value="Pool Avg: ?, Drafted Avg: ?")
+        self.stats_label = tk.Label(self.top_center_frame, textvariable=self.stats_label_var,
+                                    bg="#DDDDDD", font=(self.text_font_type, 10, "bold"))
+        self.stats_label.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=2)
+
+        # Scale and probability frame - use PanedWindow for resizable sections
+        self.scale_prob_frame = ttk.PanedWindow(self.center_frame, orient=tk.HORIZONTAL)
         self.scale_prob_frame.grid(row=1, column=0, sticky="nsew", pady=5)
 
-        # Bottom charts frame
-        self.bottom_charts_frame = tk.Frame(self.center_frame, bg="#EEEEEE")
-        self.bottom_charts_frame.grid(row=2, column=0, sticky="nsew", pady=5)
+        # Use frame for scale to allow proper resizing
+        self.scale_frame = tk.Frame(self.scale_prob_frame, bg="#EEEEEE")
+        self.scale_prob_frame.add(self.scale_frame, weight=3)
+        self.scale_frame.rowconfigure(0, weight=1)
+        self.scale_frame.columnconfigure(0, weight=1)
+
+        self.scale_canvas = tk.Canvas(self.scale_frame, bg="white")
+        self.scale_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        # Configure weights for bottom_charts_frame
-        self.bottom_charts_frame.columnconfigure(0, weight=1)
-        self.bottom_charts_frame.columnconfigure(1, weight=1)
-        self.bottom_charts_frame.rowconfigure(0, weight=1)
+        # Sigmoid canvas - placed in scale_prob_frame as per example snippet
+        self.sigmoid_canvas = tk.Canvas(self.scale_prob_frame, width=300, height=200, bg="white")
+        self.sigmoid_canvas.pack(side=tk.LEFT, padx=10, pady=5)
+        
+        # Probabilities frame
+        self.prob_frame = tk.Frame(self.scale_prob_frame, bg="#EEEEEE")
+        self.scale_prob_frame.add(self.prob_frame, weight=2)
+        self.prob_frame.rowconfigure(0, weight=0)
+        self.prob_frame.rowconfigure(1, weight=1)
+        self.prob_frame.columnconfigure(0, weight=1)
 
-        # Banner
+        tk.Label(self.prob_frame, text="Probabilities", bg="#EEEEEE",
+                 font=(self.text_font_type, 10, "bold")).grid(row=0, column=0, sticky="w")
+
+        # Prob tree with scrollbar
+        prob_tree_frame = tk.Frame(self.prob_frame)
+        prob_tree_frame.grid(row=1, column=0, sticky="nsew")
+        
+        self.prob_tree = ttk.Treeview(prob_tree_frame, columns=("player", "mmr", "diff", "prob"),
+                                      show="headings")
+        self.prob_tree.heading("player", text="Player")
+        self.prob_tree.heading("mmr", text="MMR")
+        self.prob_tree.heading("diff", text="Diff")
+        self.prob_tree.heading("prob", text="Probability")
+
+        self.prob_tree.column("player", width=100)
+        self.prob_tree.column("mmr", width=50)
+        self.prob_tree.column("diff", width=50)
+        self.prob_tree.column("prob", width=70)
+        
+        # Add scrollbars to prob_tree
+        prob_tree_yscroll = ttk.Scrollbar(prob_tree_frame, orient="vertical", command=self.prob_tree.yview)
+        prob_tree_xscroll = ttk.Scrollbar(prob_tree_frame, orient="horizontal", command=self.prob_tree.xview)
+        self.prob_tree.configure(yscrollcommand=prob_tree_yscroll.set, xscrollcommand=prob_tree_xscroll.set)
+        
+        self.prob_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        prob_tree_yscroll.pack(side=tk.RIGHT, fill=tk.Y)
+        prob_tree_xscroll.pack(side=tk.BOTTOM, fill=tk.X)
+
+        # Bottom charts frame as vertical PanedWindow to stack charts
+        self.bottom_charts_frame = ttk.PanedWindow(self.center_frame, orient=tk.VERTICAL)
+        self.bottom_charts_frame.grid(row=2, column=0, sticky="nsew", pady=5)
+
+        # Create the resizable chart frames inside the bottom_charts_frame PanedWindow
+        
+        # MMR bucket chart frame
+        self.mmr_bucket_chart_frame = tk.Frame(self.bottom_charts_frame, bg="#EEEEEE")
+        self.bottom_charts_frame.add(self.mmr_bucket_chart_frame, weight=1)
+        
+        # Role distribution chart frame
+        self.role_chart_frame = tk.Frame(self.bottom_charts_frame, bg="#EEEEEE")
+        self.bottom_charts_frame.add(self.role_chart_frame, weight=1)
+
+        # Create chart objects
+        ui = self.config.get("ui_settings", {})
+        self.mmr_chart = MMRBucketChartView(
+            self.mmr_bucket_chart_frame,
+            width=ui.get("mmr_chart_width", 600),
+            height=ui.get("mmr_chart_height", 150),
+            text_font=(self.text_font_type, self.text_font_size, "bold")
+        )
+        self.role_chart = RoleDistributionChartView(
+            self.role_chart_frame,
+            width=ui.get("role_chart_width", 600),
+            height=ui.get("role_chart_height", 180),
+            text_font=(self.text_font_type, self.text_font_size, "bold")
+        )
+
+        # Banner frame - will be used to overlay charts when visible
         self.bottom_banner_frame = tk.Frame(self.center_frame, bg="#CCCCCC")
-        self.bottom_banner_frame.grid(row=3, column=0, sticky="ew", pady=5)
+        # We'll grid this in toggle_banner based on visibility status
 
-        # Build role list (left)
-        self.role_frames = {}
-        for r in self.logic.players_by_role:
-            f = tk.Frame(self.left_frame, bd=2, relief=tk.RIDGE)
-            f.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
-            lbl = tk.Label(f, text=r.upper(), font=(self.text_font_type, 9, "bold"))
-            lbl.pack(side=tk.TOP)
-            
-            # Add scrollbar to role listboxes
-            lb_frame = tk.Frame(f)
-            lb_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-            
-            lb = tk.Listbox(lb_frame, height=8)
-            lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-            
-            lb_scrollbar = ttk.Scrollbar(lb_frame, orient="vertical", command=lb.yview)
-            lb_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-            lb.configure(yscrollcommand=lb_scrollbar.set)
-            
-            self.role_frames[r] = lb
+        # Bind resize event for scale canvas
+        def resize_scale_canvas(event):
+            self.scale_width = event.width
+            self.scale_height = event.height
+            # Redraw if we have segments
+            if hasattr(self, 'scale_segments') and self.scale_segments:
+                self.draw_scale(self.scale_segments)
+        
+        self.scale_canvas.bind("<Configure>", resize_scale_canvas)
+        
+        # Bind resize event for sigmoid canvas
+        def resize_sigmoid_canvas(event):
+            # Redraw sigmoid curve if we have data
+            if hasattr(self, 'sigmoid_data') and self.sigmoid_data:
+                self.draw_sigmoid_curve(self.sigmoid_canvas, 
+                                       self.sigmoid_data, 
+                                       self.sigmoid_ideal_mmr)
+        
+        self.sigmoid_canvas.bind("<Configure>", resize_sigmoid_canvas)
 
         # Top controls - using grid for better layout
         self.top_controls_frame_1 = tk.Frame(self.top_center_frame, bg="#DDDDDD")
@@ -194,141 +287,6 @@ class DraftGUI:
                                        textvariable=self.friction_var, width=5)
         self.friction_spin.pack(side=tk.LEFT, padx=5)
 
-        # scale+prob - use grid for responsive layout
-        self.scale_prob_frame.columnconfigure(0, weight=3)
-        self.scale_prob_frame.columnconfigure(1, weight=2)
-        self.scale_prob_frame.rowconfigure(0, weight=1)
-
-        # Use frame for scale to allow proper resizing
-        self.scale_frame = tk.Frame(self.scale_prob_frame, bg="#EEEEEE")
-        self.scale_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
-        self.scale_frame.rowconfigure(0, weight=1)
-        self.scale_frame.columnconfigure(0, weight=1)
-
-        self.scale_canvas = tk.Canvas(self.scale_frame, bg="white")
-        self.scale_canvas.grid(row=0, column=0, sticky="nsew")
-        
-        # Bind resize event for scale canvas
-        def resize_scale_canvas(event):
-            self.scale_width = event.width
-            self.scale_height = event.height
-            # Redraw if we have segments
-            if hasattr(self, 'scale_segments') and self.scale_segments:
-                self.draw_scale(self.scale_segments)
-        
-        self.scale_canvas.bind("<Configure>", resize_scale_canvas)
-
-        # Stats label
-        self.stats_label_var = tk.StringVar(value="Pool Avg: ?, Drafted Avg: ?")
-        self.stats_label = tk.Label(self.top_center_frame, textvariable=self.stats_label_var,
-                                    bg="#DDDDDD", font=(self.text_font_type, 10, "bold"))
-        self.stats_label.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=2)
-
-        # Probabilities frame
-        self.prob_frame = tk.Frame(self.scale_prob_frame, bg="#EEEEEE")
-        self.prob_frame.grid(row=0, column=1, sticky="nsew", padx=10)
-        self.prob_frame.rowconfigure(0, weight=0)
-        self.prob_frame.rowconfigure(1, weight=1)
-        self.prob_frame.columnconfigure(0, weight=1)
-
-        tk.Label(self.prob_frame, text="Probabilities", bg="#EEEEEE",
-                 font=(self.text_font_type, 10, "bold")).grid(row=0, column=0, sticky="w")
-
-        # Prob tree with scrollbar
-        prob_tree_frame = tk.Frame(self.prob_frame)
-        prob_tree_frame.grid(row=1, column=0, sticky="nsew")
-        
-        self.prob_tree = ttk.Treeview(prob_tree_frame, columns=("player", "mmr", "diff", "prob"),
-                                      show="headings")
-        self.prob_tree.heading("player", text="Player")
-        self.prob_tree.heading("mmr", text="MMR")
-        self.prob_tree.heading("diff", text="Diff")
-        self.prob_tree.heading("prob", text="Probability")
-
-        self.prob_tree.column("player", width=100)
-        self.prob_tree.column("mmr", width=50)
-        self.prob_tree.column("diff", width=50)
-        self.prob_tree.column("prob", width=70)
-        
-        # Add scrollbars to prob_tree
-        prob_tree_yscroll = ttk.Scrollbar(prob_tree_frame, orient="vertical", command=self.prob_tree.yview)
-        prob_tree_xscroll = ttk.Scrollbar(prob_tree_frame, orient="horizontal", command=self.prob_tree.xview)
-        self.prob_tree.configure(yscrollcommand=prob_tree_yscroll.set, xscrollcommand=prob_tree_xscroll.set)
-        
-        self.prob_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        prob_tree_yscroll.pack(side=tk.RIGHT, fill=tk.Y)
-        prob_tree_xscroll.pack(side=tk.BOTTOM, fill=tk.X)
-
-        # Charts layout - use grid for responsive layout
-        self.bottom_charts_frame.columnconfigure(0, weight=1)
-        self.bottom_charts_frame.columnconfigure(1, weight=1)
-        self.bottom_charts_frame.rowconfigure(0, weight=1)
-
-        # Left panel for charts (MMR and Role)
-        self.charts_left_panel = tk.Frame(self.bottom_charts_frame, bg="#EEEEEE")
-        self.charts_left_panel.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        self.charts_left_panel.rowconfigure(0, weight=1)
-        self.charts_left_panel.rowconfigure(1, weight=1)
-        self.charts_left_panel.columnconfigure(0, weight=1)
-
-        # Right panel for sigmoid chart
-        self.sigmoid_chart_frame = tk.Frame(self.bottom_charts_frame, bg="#EEEEEE")
-        self.sigmoid_chart_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
-        self.sigmoid_chart_frame.rowconfigure(0, weight=1)
-        self.sigmoid_chart_frame.columnconfigure(0, weight=1)
-
-        # MMR bucket chart frame
-        self.mmr_bucket_chart_frame = tk.Frame(self.charts_left_panel, bg="#EEEEEE")
-        self.mmr_bucket_chart_frame.grid(row=0, column=0, sticky="nsew", pady=2)
-
-        # Role distribution chart frame
-        self.role_chart_frame = tk.Frame(self.charts_left_panel, bg="#EEEEEE")
-        self.role_chart_frame.grid(row=1, column=0, sticky="nsew", pady=2)
-
-        # Create chart objects
-        ui = self.config.get("ui_settings", {})
-        self.mmr_chart = MMRBucketChartView(
-            self.mmr_bucket_chart_frame,
-            width=ui.get("mmr_chart_width", 600),
-            height=ui.get("mmr_chart_height", 150),
-            text_font=(self.text_font_type, self.text_font_size, "bold")
-        )
-        self.role_chart = RoleDistributionChartView(
-            self.role_chart_frame,
-            width=ui.get("role_chart_width", 600),
-            height=ui.get("role_chart_height", 180),
-            text_font=(self.text_font_type, self.text_font_size, "bold")
-        )
-
-        # Sigmoid canvas with resizing
-        self.sigmoid_canvas = tk.Canvas(
-            self.sigmoid_chart_frame,
-            bg="white"
-        )
-        self.sigmoid_canvas.pack(fill=tk.BOTH, expand=True, padx=15, pady=20)
-        
-        # Bind resize event for sigmoid canvas
-        def resize_sigmoid_canvas(event):
-            # Redraw sigmoid curve if we have data
-            if hasattr(self, 'sigmoid_data') and self.sigmoid_data:
-                self.draw_sigmoid_curve(self.sigmoid_canvas, 
-                                       self.sigmoid_data, 
-                                       self.sigmoid_ideal_mmr)
-        
-        self.sigmoid_canvas.bind("<Configure>", resize_sigmoid_canvas)
-
-        # Banner
-        banner_path = "banner.png"
-        if os.path.exists(banner_path):
-            try:
-                self.banner_img = ImageTk.PhotoImage(Image.open(banner_path))
-                tk.Label(self.bottom_banner_frame, image=self.banner_img).pack()
-            except Exception as e:
-                print(f"[WARNING] Could not load banner: {e}")
-                tk.Label(self.bottom_banner_frame, text="(Banner error)", bg="#CCCCCC").pack()
-        else:
-            tk.Label(self.bottom_banner_frame, text="(No banner found)", bg="#CCCCCC").pack()
-
         # Internal variables
         self.scale_segments = []
         self.pointer_x = 0.0
@@ -339,13 +297,112 @@ class DraftGUI:
         self.player_colors = {}
         self.sigmoid_data = None
         self.sigmoid_ideal_mmr = 0
-
-        # Set initial pane sizes
+        self.banner_img = None
+        
+        # Build the role list frames
+        self.build_role_list()
+        
+        # Initialize banner visibility
+        self.toggle_banner()
+        
+        # Initial refresh of data
+        self.refresh_all()
+        
+        # Set initial pane sizes - do this after everything is built
         self.master.update()
         self.main_paned.sashpos(0, 150)  # Position of first sash (after left_frame)
         self.main_paned.sashpos(1, 700)  # Position of second sash (after center_frame)
 
-        self.refresh_all()
+    def setup_banner(self):
+        """Set up the banner frame with the image"""
+        # Clear existing banner content
+        for widget in self.bottom_banner_frame.winfo_children():
+            widget.destroy()
+            
+        banner_path = "banner.png"
+        if os.path.exists(banner_path):
+            try:
+                # Make sure to keep a reference to the image to prevent garbage collection
+                self.banner_img = ImageTk.PhotoImage(Image.open(banner_path))
+                banner_label = tk.Label(self.bottom_banner_frame, image=self.banner_img)
+                banner_label.pack(fill=tk.BOTH, expand=True)
+                
+                # Store the label reference to prevent garbage collection
+                self._banner_label_ref = banner_label
+                
+                print("[INFO] Banner loaded successfully")
+            except Exception as e:
+                print(f"[WARNING] Could not load banner: {e}")
+                tk.Label(self.bottom_banner_frame, text="(Banner error)", bg="#CCCCCC").pack(fill=tk.BOTH, expand=True)
+        else:
+            # Create a placeholder label for the banner
+            placeholder_label = tk.Label(self.bottom_banner_frame, text="Custom Draft Tool", 
+                                        bg="#CCCCCC", font=(self.text_font_type, 14, "bold"))
+            placeholder_label.pack(fill=tk.BOTH, expand=True, pady=10)
+            print("[INFO] No banner.png found, using text placeholder")
+
+    def toggle_banner(self):
+        """Toggle banner visibility to overlay the charts when visible"""
+        if self.banner_visible.get():
+            # Show banner as an overlay on top of the charts
+            self.setup_banner()
+            
+            # Make the banner cover the charts area by using the same grid cell
+            self.bottom_banner_frame.grid(row=2, column=0, sticky="nsew")
+            
+            # Bring the banner to the front
+            self.bottom_banner_frame.lift()
+            print("[INFO] Banner displayed (covering charts)")
+        else:
+            # Hide banner to reveal charts
+            self.bottom_banner_frame.grid_forget()
+            print("[INFO] Banner hidden (charts visible)")
+        
+        # Force update to ensure layout changes take effect
+        self.master.update_idletasks()
+
+    # Build role list frames
+    def build_role_list(self):
+        """Create the role list frames in the left panel"""
+        # Create the container frame for roles
+        self.roles_container = tk.Frame(self.left_canvas, bg="#F5F5F5")
+        self.left_canvas_window = self.left_canvas.create_window((0, 0), window=self.roles_container, anchor="nw")
+        
+        # Create role frames
+        self.role_frames = {}
+        for r in self.logic.players_by_role:
+            # Create a frame for this role
+            role_container = tk.Frame(self.roles_container, bd=2, relief=tk.RIDGE)
+            role_container.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5, expand=True)
+            
+            # Title label
+            lbl = tk.Label(role_container, text=r.upper(), font=(self.text_font_type, 9, "bold"))
+            lbl.pack(side=tk.TOP, fill=tk.X)
+            
+            # Add scrollbar to role listboxes
+            lb_frame = tk.Frame(role_container)
+            lb_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+            
+            lb = tk.Listbox(lb_frame, height=8)
+            lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            
+            lb_scrollbar = ttk.Scrollbar(lb_frame, orient="vertical", command=lb.yview)
+            lb_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            lb.configure(yscrollcommand=lb_scrollbar.set)
+            
+            self.role_frames[r] = lb
+        
+        # Configure scrolling behavior
+        def on_frame_configure(event):
+            self.left_canvas.configure(scrollregion=self.left_canvas.bbox("all"))
+        
+        def on_canvas_configure(event):
+            # When canvas is resized, adjust the window width to match
+            canvas_width = event.width
+            self.left_canvas.itemconfig(self.left_canvas_window, width=canvas_width)
+        
+        self.roles_container.bind("<Configure>", on_frame_configure)
+        self.left_canvas.bind("<Configure>", on_canvas_configure)
 
     # Draw sigmoid curve with resizing support
     def draw_sigmoid_curve(self, canvas, data_list, ideal_mmr):
@@ -460,7 +517,6 @@ class DraftGUI:
                                           fill="black",
                                           angle=90)
 
-    # Your existing methods below (unchanged)...
     # REFRESH
     def refresh_all(self):
         self.refresh_teams_combo()
