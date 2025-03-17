@@ -135,10 +135,6 @@ class DraftGUI:
         self.scale_canvas = tk.Canvas(self.scale_frame, bg="white")
         self.scale_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        # Sigmoid canvas - placed in scale_prob_frame as per example snippet
-        self.sigmoid_canvas = tk.Canvas(self.scale_prob_frame, width=300, height=200, bg="white")
-        self.sigmoid_canvas.pack(side=tk.LEFT, padx=10, pady=5)
-        
         # Probabilities frame
         self.prob_frame = tk.Frame(self.scale_prob_frame, bg="#EEEEEE")
         self.scale_prob_frame.add(self.prob_frame, weight=2)
@@ -174,19 +170,35 @@ class DraftGUI:
         prob_tree_yscroll.pack(side=tk.RIGHT, fill=tk.Y)
         prob_tree_xscroll.pack(side=tk.BOTTOM, fill=tk.X)
 
-        # Bottom charts frame as vertical PanedWindow to stack charts
-        self.bottom_charts_frame = ttk.PanedWindow(self.center_frame, orient=tk.VERTICAL)
+        # Bottom charts frame - make horizontal PanedWindow for left/right division
+        self.bottom_charts_frame = ttk.PanedWindow(self.center_frame, orient=tk.HORIZONTAL)
         self.bottom_charts_frame.grid(row=2, column=0, sticky="nsew", pady=5)
-
-        # Create the resizable chart frames inside the bottom_charts_frame PanedWindow
+        
+        # Left side will contain the vertical stacked charts
+        self.left_charts_frame = ttk.PanedWindow(self.bottom_charts_frame, orient=tk.VERTICAL)
+        self.bottom_charts_frame.add(self.left_charts_frame, weight=2)
+        
+        # Right side will contain the sigmoid chart
+        self.right_chart_frame = tk.Frame(self.bottom_charts_frame, bg="#EEEEEE", bd=1, relief=tk.GROOVE)
+        self.bottom_charts_frame.add(self.right_chart_frame, weight=1)
+        
+        # Create the resizable chart frames inside the left_charts_frame PanedWindow
         
         # MMR bucket chart frame
-        self.mmr_bucket_chart_frame = tk.Frame(self.bottom_charts_frame, bg="#EEEEEE")
-        self.bottom_charts_frame.add(self.mmr_bucket_chart_frame, weight=1)
+        self.mmr_bucket_chart_frame = tk.Frame(self.left_charts_frame, bg="#EEEEEE")
+        self.left_charts_frame.add(self.mmr_bucket_chart_frame, weight=1)
         
         # Role distribution chart frame
-        self.role_chart_frame = tk.Frame(self.bottom_charts_frame, bg="#EEEEEE")
-        self.bottom_charts_frame.add(self.role_chart_frame, weight=1)
+        self.role_chart_frame = tk.Frame(self.left_charts_frame, bg="#EEEEEE")
+        self.left_charts_frame.add(self.role_chart_frame, weight=1)
+        
+        # Sigmoid canvas - now properly placed in the right chart frame
+        self.sigmoid_canvas = tk.Canvas(self.right_chart_frame, bg="white")
+        self.sigmoid_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Add a label to the sigmoid chart frame
+        tk.Label(self.right_chart_frame, text="Sigmoid Curve", 
+                bg="#EEEEEE", font=(self.text_font_type, 10, "bold")).pack(side=tk.TOP, anchor="w", padx=10, pady=2)
 
         # Create chart objects
         ui = self.config.get("ui_settings", {})
@@ -447,26 +459,29 @@ class DraftGUI:
         def logistic_fn(ratio):
             return 1.0 / (1.0 + math.exp(slope * (ratio - midpoint)))
 
+        # Calculate margins for labels
+        x_axis_pad = 50  # Increased for y-axis label
+        y_axis_pad = 30  # Increased for x-axis label
+        top_pad = 25    # Padding at the top to avoid cutting off
+        
         # Draw X and Y axes
-        x_axis_pad = 40
-        y_axis_pad = 20
-        canvas.create_line(x_axis_pad, h-y_axis_pad, w-10, h-y_axis_pad, fill="black")  # X axis
-        canvas.create_line(x_axis_pad, h-y_axis_pad, x_axis_pad, 10, fill="black")      # Y axis
+        canvas.create_line(x_axis_pad, h-y_axis_pad, w-20, h-y_axis_pad, fill="black", width=2)  # X axis
+        canvas.create_line(x_axis_pad, h-y_axis_pad, x_axis_pad, top_pad, fill="black", width=2)  # Y axis
 
         # We'll map ratio in [0..max_ratio] to X in [x_axis_pad..(w-50)]
-        # We'll map logistic in [0..1] to Y in [h-y_axis_pad..someTop]
+        # We'll map logistic in [0..1.2] to Y in [h-y_axis_pad..top_pad]
         def to_canvas_coords(ratio, val):
             # ratio => X
             x_min = x_axis_pad
-            x_max = w - 50
+            x_max = w - 20
             ratio_frac = ratio / max_ratio
             cx = x_min + (x_max - x_min) * ratio_frac
 
-            # logistic => Y ( invert so 1.0 is near the top )
-            y_min = 10
+            # logistic => Y (invert so 1.2 is near the top)
+            y_min = top_pad
             y_max = h - y_axis_pad
-            # val is in [0..1], so we flip
-            cy = y_max - (y_max - y_min) * val
+            # val is in [0..1.2], so we flip and scale
+            cy = y_max - (y_max - y_min) * (val / 1.2)
             return (cx, cy)
 
         # Plot the curve
@@ -477,7 +492,7 @@ class DraftGUI:
             val = logistic_fn(r)
             cx, cy = to_canvas_coords(r, val)
             if i > 0:
-                canvas.create_line(prev_x, prev_y, cx, cy, fill="blue")
+                canvas.create_line(prev_x, prev_y, cx, cy, fill="blue", width=2)
             prev_x, prev_y = cx, cy
 
         # Plot the data points
@@ -494,6 +509,41 @@ class DraftGUI:
 
             # Optionally label them
             canvas.create_text(cx, cy - 10, text=p, fill=color, font=(self.text_font_type, 8, "bold"))
+
+        # Draw X axis ticks and labels
+        num_x_ticks = 5
+        for i in range(num_x_ticks + 1):
+            tick_ratio = (max_ratio / num_x_ticks) * i
+            tick_x, tick_y = to_canvas_coords(tick_ratio, 0)
+            # Draw tick mark
+            canvas.create_line(tick_x, tick_y, tick_x, tick_y + 5, fill="black")
+            # Draw tick label
+            canvas.create_text(tick_x, tick_y + 15, text=f"{tick_ratio:.2f}", 
+                              font=(self.text_font_type, 8))
+
+        # Draw Y axis ticks and labels
+        num_y_ticks = 6  # 0 to 1.2 in 0.2 steps
+        for i in range(num_y_ticks + 1):
+            tick_val = 0.2 * i
+            tick_x, tick_y = to_canvas_coords(0, tick_val)
+            # Draw tick mark
+            canvas.create_line(tick_x, tick_y, tick_x - 5, tick_y, fill="black")
+            # Draw tick label
+            canvas.create_text(tick_x - 20, tick_y, text=f"{tick_val:.1f}", 
+                              font=(self.text_font_type, 8))
+            
+        # Add axis labels
+        # X-axis label
+        x_label_x = (w - x_axis_pad) / 2 + x_axis_pad
+        x_label_y = h - 10
+        canvas.create_text(x_label_x, x_label_y, text="MMR Difference Ratio", 
+                          font=(self.text_font_type, 9, "bold"))
+        
+        # Y-axis label
+        y_label_x = 15
+        y_label_y = (h - y_axis_pad - top_pad) / 2 + top_pad
+        canvas.create_text(y_label_x, y_label_y, text="Selection Weight", 
+                          font=(self.text_font_type, 9, "bold"), angle=90)
 
     # The rest of your methods remain the same, but we need to adapt draw_scale for resizing
     def draw_scale(self, segs):
