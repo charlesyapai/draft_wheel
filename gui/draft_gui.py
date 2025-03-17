@@ -648,15 +648,14 @@ class DraftGUI:
     def draw_final_probability_curve(self, canvas, data_list, ideal_mmr):
         """
         Draw a scatter plot of each player's final probability (y-axis)
-        vs. MMR difference ratio (x-axis).
+        vs. actual MMR (x-axis) instead of MMR difference ratio.
 
         data_list: list of (playerName, mmr, diff_val, finalProb)
-        ideal_mmr: float, the team's ideal MMR for this pick
+        ideal_mmr: float, the team's ideal MMR for this pick (displayed as reference line)
         """
-
         # Store the data for potential redraw on window resize
-        self.prob_data = data_list
-        self.prob_ideal_mmr = ideal_mmr
+        self.sigmoid_data = data_list
+        self.sigmoid_ideal_mmr = ideal_mmr
 
         # Clear any existing drawings
         canvas.delete("all")
@@ -669,22 +668,30 @@ class DraftGUI:
         if w < 50 or h < 50:
             return
 
-        # 1) Determine the maximum ratio and maximum probability
-        max_ratio = 0.0
+        # 1) Determine the MMR range and maximum probability
+        min_mmr = float('inf')
+        max_mmr = float('-inf')
         max_prob = 0.0
-        for (_, pm, diff_val, prob_val) in data_list:
-            if ideal_mmr > 0:
-                ratio_val = diff_val / ideal_mmr
-                if ratio_val > max_ratio:
-                    max_ratio = ratio_val
+        
+        for (_, pm, _, prob_val) in data_list:
+            if pm < min_mmr:
+                min_mmr = pm
+            if pm > max_mmr:
+                max_mmr = pm
             if prob_val > max_prob:
                 max_prob = prob_val
 
-        # Give a 10% buffer so points don't hit the top/right edge
-        max_ratio *= 1.1
-        if max_ratio < 0.01:
-            max_ratio = 0.01  # minimal range
+        # Add 10% padding to MMR range
+        mmr_range = max_mmr - min_mmr
+        if mmr_range < 100:  # Ensure a minimum range
+            mmr_range = 100
+            min_mmr = max(0, min_mmr - 50)
+            max_mmr = min_mmr + mmr_range
+        
+        min_mmr = max(0, min_mmr - mmr_range * 0.05)
+        max_mmr = max_mmr + mmr_range * 0.05
 
+        # Give a 10% buffer for probability so points don't hit the top edge
         y_max_value = max_prob * 1.1
         if y_max_value < 0.05:
             y_max_value = 0.05  # minimal range
@@ -709,18 +716,18 @@ class DraftGUI:
             fill="black", width=2
         )
 
-        # Helper function to map (ratio, probability) -> canvas coordinates
-        def to_canvas_coords(ratio_val, prob_val):
+        # Helper function to map (mmr, probability) -> canvas coordinates
+        def to_canvas_coords(mmr_val, prob_val):
             """
-            ratio_val in [0..max_ratio]
+            mmr_val in [min_mmr..max_mmr]
             prob_val in [0..y_max_value]
             Returns (x, y) in canvas space.
             """
             # X: left -> right
             x_min = x_axis_pad
             x_max = w - right_pad
-            # Convert ratio to fraction
-            rx = ratio_val / max_ratio
+            # Convert mmr to fraction of range
+            rx = (mmr_val - min_mmr) / (max_mmr - min_mmr) if max_mmr > min_mmr else 0.5
             cx = x_min + (x_max - x_min) * rx
 
             # Y: bottom -> top (invert so bigger prob is higher)
@@ -731,15 +738,28 @@ class DraftGUI:
 
             return (cx, cy)
 
-        # 3) Draw scatter points for each player
-        for (p, pm, diff_val, prob_val) in data_list:
-            # Compute ratio
-            ratio_val = 0.0
-            if ideal_mmr > 0:
-                ratio_val = diff_val / ideal_mmr
+        # 3) Draw reference line for ideal MMR if it's within our range
+        if min_mmr <= ideal_mmr <= max_mmr:
+            ideal_x, _ = to_canvas_coords(ideal_mmr, 0)
+            # Vertical dotted line
+            canvas.create_line(
+                ideal_x, h - y_axis_pad,
+                ideal_x, top_pad,
+                fill="blue", width=1, dash=(4, 4)
+            )
+            # Label
+            canvas.create_text(
+                ideal_x, top_pad - 5,
+                text=f"Ideal MMR: {int(ideal_mmr)}",
+                fill="blue",
+                font=(self.text_font_type, 8, "bold"),
+                anchor="s"
+            )
 
+        # 4) Draw scatter points for each player
+        for (p, pm, _, prob_val) in data_list:
             # Map to canvas coords
-            (cx, cy) = to_canvas_coords(ratio_val, prob_val)
+            (cx, cy) = to_canvas_coords(pm, prob_val)
 
             # Circle radius and color
             radius = 4
@@ -756,33 +776,35 @@ class DraftGUI:
                 font=(self.text_font_type, 8, "bold")
             )
 
-        # 4) Draw X-axis ticks (ratio)
+        # 5) Draw X-axis ticks (MMR values)
         num_x_ticks = 5
+        mmr_step = (max_mmr - min_mmr) / num_x_ticks
+        
         for i in range(num_x_ticks + 1):
-            tick_ratio = (max_ratio / num_x_ticks) * i
-            tx, ty = to_canvas_coords(tick_ratio, 0)
+            tick_mmr = min_mmr + (mmr_step * i)
+            tx, ty = to_canvas_coords(tick_mmr, 0)
             # Tick mark
             canvas.create_line(tx, ty, tx, ty + 5, fill="black")
-            # Label below the axis
-            canvas.create_text(tx, ty + 15, text=f"{tick_ratio:.2f}", font=(self.text_font_type, 8))
+            # Label below the axis - round to nearest integer for cleaner display
+            canvas.create_text(tx, ty + 15, text=f"{int(tick_mmr)}", font=(self.text_font_type, 8))
 
-        # 5) Draw Y-axis ticks (probability)
+        # 6) Draw Y-axis ticks (probability)
         num_y_ticks = 5
         for i in range(num_y_ticks + 1):
             tick_prob = (y_max_value / num_y_ticks) * i
-            tx, ty = to_canvas_coords(0, tick_prob)
+            tx, ty = to_canvas_coords(min_mmr, tick_prob)
             # Tick mark
             canvas.create_line(tx, ty, tx - 5, ty, fill="black")
             # Label to the left of the axis
             canvas.create_text(tx - 20, ty, text=f"{tick_prob:.2f}", font=(self.text_font_type, 8))
 
-        # 6) Axis Labels
+        # 7) Axis Labels
         # X-axis label
         x_label_x = (w - x_axis_pad - right_pad) / 2 + x_axis_pad
         x_label_y = h - 10
         canvas.create_text(
             x_label_x, x_label_y,
-            text="MMR Difference Ratio",
+            text="Player MMR",
             font=(self.text_font_type, 9, "bold")
         )
 
@@ -795,7 +817,6 @@ class DraftGUI:
             font=(self.text_font_type, 9, "bold"),
             angle=90
         )
-
     def draw_scale(self, segs):
         """Draw the scale with player segments"""
         self.scale_canvas.delete("all")
