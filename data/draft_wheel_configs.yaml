@@ -41,6 +41,6 @@ role_preference_weights:
   3: 0.1
 
 logistic_settings:
-  midpoint: 0.4  # ratio at which logistic ~ 0.5
+  midpoint: 0.3  # ratio at which logistic ~ 0.5
   slope: 20.0     # steeper slope => sharper drop around midpoint
-  blend_alpha: 1.0 # 1 for all MMR weights, 0 for all role weights
+  blend_alpha: 0.7 # 1 for all MMR weights, 0 for all role weights
