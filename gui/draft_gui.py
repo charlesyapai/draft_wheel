@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk
 import random
 import os
-import math
 from PIL import Image, ImageTk
 
 # import the chart classes
@@ -19,7 +18,7 @@ class DraftGUI:
         master.resizable(True, True)
         
         # Set minimum window size to prevent controls from disappearing
-        master.minsize(800, 600)
+        master.minsize(900, 600)
         
         # Make the main window expand when resized
         master.grid_rowconfigure(0, weight=1)
@@ -28,7 +27,7 @@ class DraftGUI:
         ui = self.config.get("ui_settings", {})
         self.scale_width = ui.get("wheel_size", 700)
         self.scale_height = 200
-        self.text_font_size = ui.get("text_font_size", 10)
+        self.text_font_size = ui.get("text_font_size", 9)
         self.text_font_type = ui.get("text_font_type", "Arial")
 
         style = ttk.Style()
@@ -38,9 +37,9 @@ class DraftGUI:
         style.configure("Treeview.Heading",
                         font=(self.text_font_type, self.text_font_size+1, "bold"))
         style.configure("Normal.TButton",
-                        font=(self.text_font_type, 11, "bold"),
-                        padding=8,
-                        foreground="black")
+                        font=(self.text_font_type, 12, "bold"),
+                        padding=0,
+                        foreground="brown")
 
         self.friction_var = tk.DoubleVar(value=0.99)
         # Variable to track banner visibility
@@ -149,17 +148,19 @@ class DraftGUI:
         prob_tree_frame = tk.Frame(self.prob_frame)
         prob_tree_frame.grid(row=1, column=0, sticky="nsew")
         
-        self.prob_tree = ttk.Treeview(prob_tree_frame, columns=("player", "mmr", "diff", "prob"),
+        self.prob_tree = ttk.Treeview(prob_tree_frame, columns=("player", "mmr", "diff", "prob", "pref"),
                                       show="headings")
         self.prob_tree.heading("player", text="Player")
         self.prob_tree.heading("mmr", text="MMR")
         self.prob_tree.heading("diff", text="Diff")
         self.prob_tree.heading("prob", text="Probability")
+        self.prob_tree.heading("pref", text="Pref")
 
         self.prob_tree.column("player", width=100)
         self.prob_tree.column("mmr", width=50)
         self.prob_tree.column("diff", width=50)
         self.prob_tree.column("prob", width=70)
+        self.prob_tree.column("pref", width=40)
         
         # Add scrollbars to prob_tree
         prob_tree_yscroll = ttk.Scrollbar(prob_tree_frame, orient="vertical", command=self.prob_tree.yview)
@@ -193,12 +194,12 @@ class DraftGUI:
         self.left_charts_frame.add(self.role_chart_frame, weight=1)
         
         # Sigmoid canvas - now properly placed in the right chart frame
-        self.sigmoid_canvas = tk.Canvas(self.right_chart_frame, bg="white")
+        self.sigmoid_canvas = tk.Canvas(self.right_chart_frame, bg="#FFB6C1")
         self.sigmoid_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        # Add a label to the sigmoid chart frame
-        tk.Label(self.right_chart_frame, text="Sigmoid Curve", 
-                bg="#EEEEEE", font=(self.text_font_type, 10, "bold")).pack(side=tk.TOP, anchor="w", padx=10, pady=2)
+        # # Add a label to the sigmoid chart frame
+        # tk.Label(self.right_chart_frame, text="Sigmoid Curve", 
+        #         bg="#EEEEEE", font=(self.text_font_type, 10, "bold")).pack(side=tk.TOP, anchor="w", padx=10, pady=2)
 
         # Create chart objects
         ui = self.config.get("ui_settings", {})
@@ -233,7 +234,7 @@ class DraftGUI:
         def resize_sigmoid_canvas(event):
             # Redraw sigmoid curve if we have data
             if hasattr(self, 'sigmoid_data') and self.sigmoid_data:
-                self.draw_sigmoid_curve(self.sigmoid_canvas, 
+                self.draw_final_probability_curve(self.sigmoid_canvas, 
                                        self.sigmoid_data, 
                                        self.sigmoid_ideal_mmr)
         
@@ -294,8 +295,8 @@ class DraftGUI:
         self.randomness_label = tk.Label(self.top_controls_frame_2, textvariable=self.randomness_label_var, bg="#DDDDDD")
         self.randomness_label.pack(side=tk.LEFT, padx=10)
 
-        tk.Label(self.top_controls_frame_2, text="Friction:", bg="#DDDDDD").pack(side=tk.LEFT, padx=5)
-        self.friction_spin = tk.Spinbox(self.top_controls_frame_2, from_=0.80, to=0.999, increment=0.001,
+        tk.Label(self.top_controls_frame_2, text="Lubricant:", bg="#DDDDDD").pack(side=tk.LEFT, padx=5)
+        self.friction_spin = tk.Spinbox(self.top_controls_frame_2, from_=0.980, to=0.998, increment=0.002,
                                        textvariable=self.friction_var, width=5)
         self.friction_spin.pack(side=tk.LEFT, padx=5)
 
@@ -322,8 +323,8 @@ class DraftGUI:
         
         # Set initial pane sizes - do this after everything is built
         self.master.update()
-        self.main_paned.sashpos(0, 150)  # Position of first sash (after left_frame)
-        self.main_paned.sashpos(1, 700)  # Position of second sash (after center_frame)
+        self.main_paned.sashpos(0, 250)  # Position of first sash (after left_frame)
+        self.main_paned.sashpos(1, 1200)  # Position of second sash (after center_frame)
 
     def setup_banner(self):
         """Set up the banner frame with the image"""
@@ -416,134 +417,164 @@ class DraftGUI:
         self.roles_container.bind("<Configure>", on_frame_configure)
         self.left_canvas.bind("<Configure>", on_canvas_configure)
 
-    # Draw sigmoid curve with resizing support
-    def draw_sigmoid_curve(self, canvas, data_list, ideal_mmr):
+    # Draw the final probability curve
+    def draw_final_probability_curve(self, canvas, data_list, ideal_mmr):
         """
-        Draw a basic logistic-like curve from ratio=0 to ratio=some max,
-        and then plot each player's (ratio, weight) point in matching color.
+        Draw a scatter plot of each player's final probability (y-axis)
+        vs. MMR difference ratio (x-axis).
 
-        data_list: list of (playerName, mmr, diff, prob)
+        data_list: list of (playerName, mmr, diff_val, finalProb)
+        ideal_mmr: float, the team's ideal MMR for this pick
         """
-        # Store data for potential resize
-        self.sigmoid_data = data_list
-        self.sigmoid_ideal_mmr = ideal_mmr
-        
+
+        # Store the data for potential redraw on window resize
+        self.prob_data = data_list
+        self.prob_ideal_mmr = ideal_mmr
+
+        # Clear any existing drawings
         canvas.delete("all")
 
-        # If you have a known logistic function, you can replicate it here.
-        # For example, if midpoint=0.1, slope=5.0, then we do:
-        midpoint = self.config["logistic_settings"].get("midpoint", 0.1)
-        slope = self.config["logistic_settings"].get("slope", 5.0)
-
-        # Canvas dimensions
+        # Get the canvas dimensions
         w = int(canvas.winfo_width())
         h = int(canvas.winfo_height())
-        
-        # Make sure dimensions are reasonable
+
+        # If the canvas is too small, skip drawing for now
         if w < 50 or h < 50:
-            return  # Wait for resize
+            return
 
-        # We'll sample ratio from 0..(some max) in small steps
-        # Let's find max ratio from the data. Or pick 2.0 if large.
+        # 1) Determine the maximum ratio and maximum probability
         max_ratio = 0.0
-        for (_, pm, diff_val, _) in data_list:
+        max_prob = 0.0
+        for (_, pm, diff_val, prob_val) in data_list:
             if ideal_mmr > 0:
-                r = diff_val / ideal_mmr
-                if r > max_ratio:
-                    max_ratio = r
-        if max_ratio < 0.2:
-            max_ratio = 0.2  # minimal range
-        margin_ratio = 0.1 * max_ratio
-        max_ratio += margin_ratio
+                ratio_val = diff_val / ideal_mmr
+                if ratio_val > max_ratio:
+                    max_ratio = ratio_val
+            if prob_val > max_prob:
+                max_prob = prob_val
 
-        def logistic_fn(ratio):
-            return 1.0 / (1.0 + math.exp(slope * (ratio - midpoint)))
+        # Give a 10% buffer so points don't hit the top/right edge
+        max_ratio *= 1.1
+        if max_ratio < 0.01:
+            max_ratio = 0.01  # minimal range
 
-        # Calculate margins for labels
-        x_axis_pad = 50  # Increased for y-axis label
-        y_axis_pad = 30  # Increased for x-axis label
-        top_pad = 25    # Padding at the top to avoid cutting off
-        
-        # Draw X and Y axes
-        canvas.create_line(x_axis_pad, h-y_axis_pad, w-20, h-y_axis_pad, fill="black", width=2)  # X axis
-        canvas.create_line(x_axis_pad, h-y_axis_pad, x_axis_pad, top_pad, fill="black", width=2)  # Y axis
+        y_max_value = max_prob * 1.1
+        if y_max_value < 0.05:
+            y_max_value = 0.05  # minimal range
 
-        # We'll map ratio in [0..max_ratio] to X in [x_axis_pad..(w-50)]
-        # We'll map logistic in [0..1.2] to Y in [h-y_axis_pad..top_pad]
-        def to_canvas_coords(ratio, val):
-            # ratio => X
+        # 2) Define axes margin/padding
+        x_axis_pad = 50  # left margin to draw Y axis
+        y_axis_pad = 30  # bottom margin for X axis label
+        top_pad    = 25  # top padding so labels/points aren't clipped
+        right_pad  = 20  # a little right padding
+
+        # Draw the X-axis (horizontal)
+        canvas.create_line(
+            x_axis_pad, h - y_axis_pad,  # start
+            w - right_pad, h - y_axis_pad,  # end
+            fill="black", width=2
+        )
+
+        # Draw the Y-axis (vertical)
+        canvas.create_line(
+            x_axis_pad, h - y_axis_pad,  # start
+            x_axis_pad, top_pad,         # end
+            fill="black", width=2
+        )
+
+        # Helper function to map (ratio, probability) -> canvas coordinates
+        def to_canvas_coords(ratio_val, prob_val):
+            """
+            ratio_val in [0..max_ratio]
+            prob_val in [0..y_max_value]
+            Returns (x, y) in canvas space.
+            """
+            # X: left -> right
             x_min = x_axis_pad
-            x_max = w - 20
-            ratio_frac = ratio / max_ratio
-            cx = x_min + (x_max - x_min) * ratio_frac
+            x_max = w - right_pad
+            # Convert ratio to fraction
+            rx = ratio_val / max_ratio
+            cx = x_min + (x_max - x_min) * rx
 
-            # logistic => Y (invert so 1.2 is near the top)
+            # Y: bottom -> top (invert so bigger prob is higher)
             y_min = top_pad
             y_max = h - y_axis_pad
-            # val is in [0..1.2], so we flip and scale
-            cy = y_max - (y_max - y_min) * (val / 1.2)
+            ry = prob_val / y_max_value
+            cy = y_max - (y_max - y_min) * ry
+
             return (cx, cy)
 
-        # Plot the curve
-        prev_x, prev_y = None, None
-        steps = 100
-        for i in range(steps+1):
-            r = (max_ratio / steps) * i
-            val = logistic_fn(r)
-            cx, cy = to_canvas_coords(r, val)
-            if i > 0:
-                canvas.create_line(prev_x, prev_y, cx, cy, fill="blue", width=2)
-            prev_x, prev_y = cx, cy
-
-        # Plot the data points
+        # 3) Draw scatter points for each player
         for (p, pm, diff_val, prob_val) in data_list:
-            if ideal_mmr <= 0:
-                continue
-            ratio = diff_val / ideal_mmr
-            lw = logistic_fn(ratio)
+            # Compute ratio
+            ratio_val = 0.0
+            if ideal_mmr > 0:
+                ratio_val = diff_val / ideal_mmr
 
-            (cx, cy) = to_canvas_coords(ratio, lw)
+            # Map to canvas coords
+            (cx, cy) = to_canvas_coords(ratio_val, prob_val)
+
+            # Circle radius and color
             radius = 4
-            color = self.player_colors.get(p, "red")
+            color = self.player_colors.get(p, "red")  # or pick a default
+
+            # Draw a small circle for the player's point
             canvas.create_oval(cx - radius, cy - radius, cx + radius, cy + radius, fill=color)
 
-            # Optionally label them
-            canvas.create_text(cx, cy - 10, text=p, fill=color, font=(self.text_font_type, 8, "bold"))
+            # Label the point with the player's name (slightly above the circle)
+            canvas.create_text(
+                cx, cy - 10,
+                text=p,
+                fill=color,
+                font=(self.text_font_type, 8, "bold")
+            )
 
-        # Draw X axis ticks and labels
+        # 4) Draw X-axis ticks (ratio)
         num_x_ticks = 5
         for i in range(num_x_ticks + 1):
             tick_ratio = (max_ratio / num_x_ticks) * i
-            tick_x, tick_y = to_canvas_coords(tick_ratio, 0)
-            # Draw tick mark
-            canvas.create_line(tick_x, tick_y, tick_x, tick_y + 5, fill="black")
-            # Draw tick label
-            canvas.create_text(tick_x, tick_y + 15, text=f"{tick_ratio:.2f}", 
-                              font=(self.text_font_type, 8))
+            tx, ty = to_canvas_coords(tick_ratio, 0)
+            # Tick mark
+            canvas.create_line(tx, ty, tx, ty + 5, fill="black")
+            # Label below the axis
+            canvas.create_text(tx, ty + 15, text=f"{tick_ratio:.2f}", font=(self.text_font_type, 8))
 
-        # Draw Y axis ticks and labels
-        num_y_ticks = 6  # 0 to 1.2 in 0.2 steps
+        # 5) Draw Y-axis ticks (probability)
+        num_y_ticks = 5
         for i in range(num_y_ticks + 1):
-            tick_val = 0.2 * i
-            tick_x, tick_y = to_canvas_coords(0, tick_val)
-            # Draw tick mark
-            canvas.create_line(tick_x, tick_y, tick_x - 5, tick_y, fill="black")
-            # Draw tick label
-            canvas.create_text(tick_x - 20, tick_y, text=f"{tick_val:.1f}", 
-                              font=(self.text_font_type, 8))
-            
-        # Add axis labels
+            tick_prob = (y_max_value / num_y_ticks) * i
+            tx, ty = to_canvas_coords(0, tick_prob)
+            # Tick mark
+            canvas.create_line(tx, ty, tx - 5, ty, fill="black")
+            # Label to the left of the axis
+            canvas.create_text(tx - 20, ty, text=f"{tick_prob:.2f}", font=(self.text_font_type, 8))
+
+        # 6) Axis Labels
         # X-axis label
-        x_label_x = (w - x_axis_pad) / 2 + x_axis_pad
+        x_label_x = (w - x_axis_pad - right_pad) / 2 + x_axis_pad
         x_label_y = h - 10
-        canvas.create_text(x_label_x, x_label_y, text="MMR Difference Ratio", 
-                          font=(self.text_font_type, 9, "bold"))
-        
-        # Y-axis label
+        canvas.create_text(
+            x_label_x, x_label_y,
+            text="MMR Difference Ratio",
+            font=(self.text_font_type, 9, "bold")
+        )
+
+        # Y-axis label (vertical)
         y_label_x = 15
         y_label_y = (h - y_axis_pad - top_pad) / 2 + top_pad
-        canvas.create_text(y_label_x, y_label_y, text="Selection Weight", 
-                          font=(self.text_font_type, 9, "bold"), angle=90)
+        canvas.create_text(
+            y_label_x, y_label_y,
+            text="Final Probability",
+            font=(self.text_font_type, 9, "bold"),
+            angle=90
+        )
+        # # Title
+        # tk.Label(
+        #     self.right_chart_frame,
+        #     text="Final Probability vs. MMR Diff Ratio",
+        #     bg="#EEEEEE",
+        #     font=(self.text_font_type, 10, "bold")
+        # ).pack(side=tk.TOP, anchor="w", padx=10, pady=2)
 
     # The rest of your methods remain the same, but we need to adapt draw_scale for resizing
     def draw_scale(self, segs):
@@ -586,7 +617,15 @@ class DraftGUI:
             if r in p_by_role:
                 for player in p_by_role[r]:
                     mmr=self.logic.all_players[player]["mmr"]
-                    lb.insert(tk.END, f"{player} (MMR {mmr})")
+                    
+                    # Find preference for this role
+                    pref = 1  # Default preference
+                    for role_info in self.logic.all_players[player]["roles"]:
+                        if role_info[0] == r:
+                            pref = role_info[1]
+                            break
+                            
+                    lb.insert(tk.END, f"{pref} | {player} | {mmr}")
 
     def refresh_teams_display(self):
         for w in self.teams_inner_frame.winfo_children():
@@ -636,12 +675,14 @@ class DraftGUI:
 
     # CHARTS
     def draw_mmr_bucket_chart(self):
-        stats=self.logic.get_mmr_bucket_stats()
-        self.mmr_chart.draw(stats)
+        """Draw the MMR bucket chart with improved categorization based on first 2 prioritized roles"""
+        stats = self.logic.get_mmr_bucket_stats()
+        self.mmr_chart.draw(stats, self.logic.all_players, self.logic)
 
     def draw_role_chart(self):
-        stats=self.logic.get_role_distribution_stats()
-        self.role_chart.draw(stats)
+        """Draw the role distribution chart with priority breakdown"""
+        stats = self.logic.get_role_distribution_stats()
+        self.role_chart.draw(stats, self.logic)
 
     # PREVIEW / SPIN
     def preview_slices(self):
@@ -712,8 +753,15 @@ class DraftGUI:
             s = ttk.Style()
             s.configure(style_name, background=color,
                         font=(self.text_font_type, self.text_font_size, "bold"))
+                        
+            # Get preference for this role
+            pref = 1  # Default preference
+            for role_info in self.logic.all_players[p]["roles"]:
+                if role_info[0] == actual_role:
+                    pref = role_info[1]
+                    break
 
-            row_id = self.prob_tree.insert("", "end", values=(p, int(pm), int(diff_val), prob_str))
+            row_id = self.prob_tree.insert("", "end", values=(p, int(pm), int(diff_val), prob_str, pref))
             self.prob_tree.item(row_id, tags=(style_name,))
             self.prob_tree.tag_configure(style_name, background=color)
 
@@ -725,7 +773,7 @@ class DraftGUI:
         self.draw_scale(segs)
 
         # 4) Draw the sigmoid/ratio curve on self.sigmoid_canvas
-        self.draw_sigmoid_curve(self.sigmoid_canvas, data_list, ideal_mmr)
+        self.draw_final_probability_curve(self.sigmoid_canvas, data_list, ideal_mmr)
 
     def ask_for_fallback_role(self, original_role:str):
         popup=tk.Toplevel(self.master)
