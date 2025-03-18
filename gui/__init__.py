@@ -1,14 +1,30 @@
 """
-Draft Wheel GUI Package
+GUI package for Draft Wheel application
 """
-# Import key components and classes
-from gui.config import load_config, DEFAULT_UI_CONFIG
+# Import components
 from gui.components import (
-    ProbabilityView, 
-    SigmoidChartView,
+    ProbabilityView,
     ThemeManager,
     ModernFrame,
     ModernButton,
     PanelManager,
-    ModernProbabilityView
+    ModernSigmoidChart, 
+    ModernProbabilityTable,
+    ModernProbabilityView,
+    ModernWheel,
+    ModernDraftControls
 )
+
+# Define exported names
+__all__ = [
+    'ProbabilityView',
+    'ThemeManager',
+    'ModernFrame',
+    'ModernButton',
+    'PanelManager',
+    'ModernSigmoidChart',
+    'ModernProbabilityTable',
+    'ModernProbabilityView',
+    'ModernWheel',
+    'ModernDraftControls'
+]

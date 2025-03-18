@@ -410,25 +410,44 @@ class DraftLogic:
 
     def get_ideal_mmr_for_pick(self, team_id: str, role: str) -> float:
         """
-        Return the 'ideal_mmr' for the next pick, based on the ratio-based approach.
-        If you already have this logic in 'compute_probabilities', you can store it
-        and return it here or replicate the simple formula.
+        Calculate the ideal MMR for the next pick on a team
+        
+        Args:
+            team_id: Team identifier
+            role: Role to be filled
+            
+        Returns:
+            float: The ideal MMR for the next pick
         """
+        if team_id not in self.teams:
+            return self.global_average_mmr
+            
         team_data = self.teams[team_id]
-        current_n = len(team_data["players"])
-        team_size = self.config.get("team_size", 5)  # e.g. from YAML
-        if current_n >= team_size:
-            return 0.0
-
-        current_sum = team_data["average_mmr"] * current_n
-        desired_total_for_full_team = team_size * self.global_average_mmr
-        remaining_mmr = desired_total_for_full_team - current_sum
-        picks_left = team_size - current_n
-        if picks_left <= 0:
-            return 0.0
-
-        ideal_mmr = remaining_mmr / picks_left
-        return ideal_mmr
+        current_players = len(team_data["players"])
+        
+        # If team is empty, return global average
+        if current_players == 0:
+            return self.global_average_mmr
+            
+        # Get current total MMR
+        current_mmr_sum = team_data["average_mmr"] * current_players
+        
+        # Calculate how many more players we need
+        players_needed = self.config["team_size"] - current_players
+        if players_needed <= 0:
+            return self.global_average_mmr
+            
+        # Calculate what MMR we need to reach global average
+        target_team_mmr = self.global_average_mmr * self.config["team_size"]
+        remaining_mmr = target_team_mmr - current_mmr_sum
+        
+        # Ideal MMR for this pick
+        ideal_mmr = remaining_mmr / players_needed
+        
+        # Cap the MMR to a reasonable range
+        min_mmr = 1000  # Minimum reasonable MMR
+        max_mmr = 10000  # Maximum reasonable MMR
+        return max(min_mmr, min(max_mmr, ideal_mmr))
 
     def get_pool_average_mmr(self) -> float:
         """

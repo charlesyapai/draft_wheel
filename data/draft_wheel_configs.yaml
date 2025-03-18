@@ -32,8 +32,8 @@ role_preference_weights:
 
 logistic_settings:
   midpoint: 0.3  # ratio at which logistic ~ 0.5
-  slope: 20.0     # steeper slope => sharper drop around midpoint
-  blend_alpha: 0.7 # 1 for all MMR weights, 0 for all role weights
+  slope: 30.0     # steeper slope => sharper drop around midpoint
+  blend_alpha: 0.8 # 1 for all MMR weights, 0 for all role weights
 
 
 
@@ -45,12 +45,23 @@ logistic_settings:
 # ========================
 ui_settings:
   # Fonts
-  text_font_type: "Arial"
-  text_font_size: 10
-  header_font_size: 12
-  button_font_size: 14
-  subheader_font_size: 15
-  tree_font_size: 12
+  fonts:
+    general:
+      family: "Segoe UI"
+      size: 10
+    headers:
+      family: "Segoe UI"
+      size: 14
+      weight: "bold"
+    buttons:
+      family: "Segoe UI"
+      small: 10
+      medium: 12
+      large: 14
+    tables:
+      family: "Segoe UI"
+      headers: 11
+      content: 10
   
   # Colors
   main_bg_color: "#F5F5F5"
@@ -60,7 +71,9 @@ ui_settings:
   pointer_color: "red"
   
   # Dimensions
-  wheel_size: 900
+  min_window_width: 900
+  min_window_height: 600
+  wheel_size: 700
   wheel_height: 200
   mmr_chart_width: 900
   mmr_chart_height: 150
@@ -77,7 +90,15 @@ ui_settings:
   right_panel_weight: 1
   
   # Team colors
-  team_colors: ["#FFD700", "#ADFF2F", "#40E0D0", "#FF69B4", "#FF7F50", "#9ACD32", "#9370DB", "#FFB6C1"]
+  team_colors:
+    - "#FF5252"  # Red
+    - "#4CAF50"  # Green
+    - "#2196F3"  # Blue
+    - "#9C27B0"  # Purple
+    - "#FF9800"  # Orange
+    - "#00BCD4"  # Cyan
+    - "#FFEB3B"  # Yellow
+    - "#9E9E9E"  # Gray
 
   # Role button settings
   role_button_font_type: "Segoe UI"  # Or try: "Verdana", "Roboto", "Helvetica Neue"
@@ -85,3 +106,9 @@ ui_settings:
   role_button_padding: 2
   role_button_width: 5
   role_button_spacing: 1
+
+  # Wheel friction settings
+  wheel_friction:
+    friction_min: 0.95
+    friction_max: 0.999
+    friction_default: 0.99
