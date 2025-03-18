@@ -24,7 +24,7 @@ class DraftGUI:
             "header_font_size": 12,
             "subheader_font_size": 10,
             "button_font_size": 11,
-            "tree_font_size": 9,
+            "tree_font_size": 11,
             "tree_header_font_size": 10,
             
             # Role Button Specific Settings
