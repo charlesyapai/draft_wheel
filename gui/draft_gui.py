@@ -399,13 +399,13 @@ class DraftGUI:
         self.top_controls_frame_3.pack(side=tk.TOP, fill=tk.X, pady=2)
 
         # Add banner toggle checkbox to the new row
-        self.banner_toggle = ttk.Checkbutton(
+        self.banner_visible = ttk.Checkbutton(
             self.top_controls_frame_3, 
             text="Show Banner", 
             variable=self.banner_visible,
             command=self.toggle_banner
         )
-        self.banner_toggle.pack(side=tk.RIGHT, padx=self.padding*2)
+        self.banner_visible.pack(side=tk.RIGHT, padx=self.padding*2)
 
         # Row 1: Team selection and role buttons
         tk.Label(
@@ -526,7 +526,7 @@ class DraftGUI:
         
         self.friction_spin = tk.Spinbox(
             self.top_controls_frame_2, 
-            from_=0.980, 
+            from_=0.970, 
             to=0.998, 
             increment=0.002,
             textvariable=self.friction_var, 

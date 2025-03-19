@@ -1,0 +1,29 @@
+Method,Study Design,Primary Data Required,Output/Prediction,Brief Description
+Retrospective Cohort (New IHD),Epidemiological,"1) Patient records with no prior IHD
+2) Dengue infection date and severity
+3) Follow-up data for new IHD diagnosis
+4) Confounders (age, comorbidities, etc.)","Incidence of new-onset IHD (time-to-event or incidence rate)","Compare 'dengue-exposed' individuals to 'non-exposed' over a defined follow-up to see if dengue predisposes to new IHD."
+Self-Controlled Case Series (SCCS),Epidemiological,"1) Patients with confirmed dengue and a known outcome period
+2) Exact dates for dengue infection
+3) Cardiac event dates (MI, unstable angina, etc.)","Relative incidence of cardiac events pre- vs. post-dengue in the same patient","Each patient is their own control, minimizing between-person confounders; useful for short-term trigger assessment (e.g., 0-14 days)."
+Nested Case-Control (Known CVD),Epidemiological,"1) Subset of patients with pre-existing CVD
+2) Dengue vs. no-dengue status
+3) Cardiac outcomes (ACS, HF exacerbation)
+4) Matching factors (age, sex, risk profile)","Odds ratio of acute cardiac events among those who recently had dengue vs. those who did not","Within a larger cohort of CVD patients, identify cases who developed acute events and compare exposure (dengue) rates to matched controls."
+Logistic/Cox Regression (Worsened Outcomes),Epidemiological,"1) Patients hospitalized for cardiac events
+2) Dengue infection status (current or recent)
+3) Outcome severity (ICU admission, mortality)
+4) Covariates (comorbidity index, labs, meds)","Odds ratio or hazard ratio for severe endpoints in patients with vs. without dengue","Assesses how dengue comorbidity influences severity (ICU, mortality) among cardiac patients."
+Predictive Modeling (ML Classification),Machine Learning,"1) Patient-level features: demographics, comorbidities, lab data
+2) Dengue infection indicators/severity
+3) Outcome label: IHD occurrence (yes/no) within a defined time frame","Probability of developing new-onset IHD or acute cardiac event","Train an ML classifier (e.g., Random Forest) to predict who develops IHD after dengue; can evaluate performance (AUC) and feature importance."
+Survival Modeling (ML-based),Machine Learning,"1) Time-to-event data (dengue date, onset of IHD or event)
+2) Right-censoring info (end of follow-up)
+3) Covariates (age, comorbidities, lab trends)","Survival function estimation (e.g., hazard of new IHD over time)","Use ML methods like random survival forests or gradient boosting for time-to-event data. Good for capturing complex covariate interactions."
+Clustering (Subgroup Discovery),Machine Learning,"1) Multidimensional clinical & lab data for dengue patients
+2) Cardiac outcomes (IHD, HF, arrhythmias)
+3) Possibly repeated measures (severity, labs over time)","Unsupervised identification of subgroups with higher vs. lower risk of IHD","K-means or hierarchical clustering to find phenotypes. Certain clusters may show markedly higher post-dengue cardiac risk."
+Causal Inference + ML (e.g., TMLE),Machine Learning / Epidemiological,"1) Rich dataset for confounders (demographics, prior disease history)
+2) Exposure variable: Dengue
+3) Outcome variable: Cardiac event or severity
+4) Propensity score or weighting mechanism","Causal effect estimates of dengue on cardiac outcomes, adjusting for confounding","Combines ML to flexibly estimate nuisance parameters (propensity, outcome regression) and produce robust causal estimates under certain assumptions."

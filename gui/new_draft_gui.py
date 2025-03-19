@@ -206,6 +206,10 @@ class DraftGUI:
         # Connect friction variable
         self.friction_var = self.control_panel.friction_var
         
+        # Connect banner toggle
+        self.banner_visible = self.control_panel.banner_visible
+        self.control_panel.set_banner_toggle_command(self.toggle_banner)
+        
         # Role Panel component
         self.role_panel = RolePanel(self.center_frame, self.ui_config, self.preview_slices)
         self.role_panel.create_role_buttons(self.control_panel.top_controls_frame_1)
@@ -244,10 +248,6 @@ class DraftGUI:
         # Banner Panel component
         self.banner_panel = BannerPanel(self.center_frame, self.ui_config)
         self.banner_panel.setup_banner()
-        
-        # Connect banner toggle
-        self.banner_visible = self.control_panel.banner_visible
-        self.control_panel.set_banner_toggle_command(self.toggle_banner)
     
     def on_team_selected(self, team_id):
         """

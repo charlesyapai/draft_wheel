@@ -26,7 +26,13 @@ DEFAULT_UI_CONFIG = {
     "frame_bg_color": "#EEEEEE",
     "controls_bg_color": "#DDDDDD",
     "canvas_bg_color": "white",
-    "sigmoid_bg_color": "#FFB6C1",
+    "sigmoid_bg_color": "#1E1E2F",  # Dark blue/purple gaming background
+    "sigmoid_grid_color": "#444466",  # Subtle grid lines
+    "sigmoid_axis_color": "#8080FF",  # Bright blue axes
+    "sigmoid_text_color": "#FFFFFF",  # White text
+    "sigmoid_point_color": "#00FFFF",  # Cyan points
+    "sigmoid_line_color": "#FF00FF",  # Magenta curve
+    "sigmoid_ideal_line_color": "#00FF00",  # Bright green ideal line
     "button_fg_color": "brown",
     "button_select_color": "#FFD700",
     "pointer_color": "red",

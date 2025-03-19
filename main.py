@@ -2,7 +2,7 @@
 import tkinter as tk
 from config.loader import ConfigRetrieval  # if you have that
 from logic.draft_logic import DraftLogic
-from gui.draft_gui import DraftGUI
+from gui.new_draft_gui import DraftGUI
 
 def main():
     config_path = "data/draft_wheel_configs.yaml"

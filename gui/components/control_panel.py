@@ -28,7 +28,7 @@ class ControlPanel:
         
         # Main control frame
         self.frame = tk.Frame(parent, bg=ui_config["controls_bg_color"])
-        self.frame.pack(side=tk.TOP, fill=tk.X, pady=ui_config["padding"])
+        self.frame.grid(row=0, column=0, sticky="ew", pady=ui_config["padding"])
         
         # Setup frames
         self._create_stats_label()
@@ -42,20 +42,20 @@ class ControlPanel:
             bg=self.ui_config["controls_bg_color"], 
             font=(self.ui_config["text_font_type"], self.ui_config["subheader_font_size"], "bold")
         )
-        self.stats_label.pack(side=tk.TOP, anchor=tk.W, padx=self.ui_config["padding"], pady=2)
+        self.stats_label.grid(row=0, column=0, sticky="w", padx=self.ui_config["padding"], pady=2)
     
     def _create_control_rows(self):
         """Create control rows with buttons"""
         # Top controls - using frames for better layout
         self.top_controls_frame_1 = tk.Frame(self.frame, bg=self.ui_config["controls_bg_color"])
-        self.top_controls_frame_1.pack(side=tk.TOP, fill=tk.X, pady=2)
+        self.top_controls_frame_1.grid(row=1, column=0, sticky="ew", pady=2)
 
         self.top_controls_frame_2 = tk.Frame(self.frame, bg=self.ui_config["controls_bg_color"])
-        self.top_controls_frame_2.pack(side=tk.TOP, fill=tk.X, pady=2)
+        self.top_controls_frame_2.grid(row=2, column=0, sticky="ew", pady=2)
         
         # Add a new frame for the banner toggle (3rd row)
         self.top_controls_frame_3 = tk.Frame(self.frame, bg=self.ui_config["controls_bg_color"])
-        self.top_controls_frame_3.pack(side=tk.TOP, fill=tk.X, pady=2)
+        self.top_controls_frame_3.grid(row=3, column=0, sticky="ew", pady=2)
 
         # Row 1: Team selection and role buttons
         tk.Label(
@@ -116,7 +116,7 @@ class ControlPanel:
         
         self.friction_spin = tk.Spinbox(
             self.top_controls_frame_2, 
-            from_=0.980, 
+            from_=0.970, 
             to=0.998, 
             increment=0.002,
             textvariable=self.friction_var, 

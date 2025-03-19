@@ -13,7 +13,7 @@ class TeamPanel:
         Initialize the team panel
         
         Args:
-            parent: Parent frame/widget
+            parent: Parent widget
             ui_config: UI configuration dict
             on_team_selected_callback: Callback when team is selected
         """
@@ -25,6 +25,9 @@ class TeamPanel:
         self.selected_team_container = None
         self.team_containers = {}
         self.team_color_indices = {}
+        
+        # Keep track of drag and drop state
+        self.drag_data = {"x": 0, "y": 0, "item": None, "widget": None, "start_y": 0}
         
         # Set up teams display with scrollbars that respond to resize
         self.teams_canvas = tk.Canvas(parent, bg=ui_config["teams_bg_color"])
@@ -42,6 +45,12 @@ class TeamPanel:
         self.teams_inner_frame.bind("<Configure>", self._on_teams_configure)
         self.teams_canvas.bind("<Configure>", self._on_canvas_configure)
         
+        # Enable mousewheel scrolling - bind to canvas directly instead of all widgets
+        self.teams_canvas.bind("<MouseWheel>", self._on_mousewheel)
+        # For Linux/Unix systems that use Button-4/Button-5 for scrolling
+        self.teams_canvas.bind("<Button-4>", lambda e: self.teams_canvas.yview_scroll(-1, "units"))
+        self.teams_canvas.bind("<Button-5>", lambda e: self.teams_canvas.yview_scroll(1, "units"))
+        
     def _on_teams_configure(self, event):
         """Handle teams container resize"""
         self.teams_canvas.configure(scrollregion=self.teams_canvas.bbox("all"))
@@ -49,6 +58,11 @@ class TeamPanel:
     def _on_canvas_configure(self, event):
         """Handle canvas resize"""
         self.teams_canvas.itemconfig(self.teams_canvas_window, width=event.width)
+        
+    def _on_mousewheel(self, event):
+        """Handle mousewheel scrolling"""
+        # Simple direct scrolling - scroll by 2 units for smoother experience
+        self.teams_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
     def refresh_teams_display(self, teams_data, current_team=None):
         """
@@ -91,6 +105,15 @@ class TeamPanel:
             # Create the actual team card inside the container
             team_card = tk.Frame(team_container, bg=team_bg)
             team_card.pack(fill=tk.BOTH, expand=True)
+            
+            # Create a drag handle at the top
+            drag_handle = tk.Frame(team_card, bg=team_bg, height=5, cursor="fleur")
+            drag_handle.pack(side=tk.TOP, fill=tk.X)
+            
+            # Set up drag and drop for reordering
+            drag_handle.bind("<ButtonPress-1>", lambda e, w=team_container: self._drag_start(e, w))
+            drag_handle.bind("<B1-Motion>", self._drag_motion)
+            drag_handle.bind("<ButtonRelease-1>", self._drag_end)
             
             # Create a header frame for the team name and color picker
             header_frame = tk.Frame(team_card, bg=team_bg)
@@ -292,3 +315,69 @@ class TeamPanel:
             dict: Map of team IDs to color indices
         """
         return self.team_color_indices 
+
+    def _drag_start(self, event, widget):
+        """Start dragging a team container"""
+        # Record initial position
+        self.drag_data["widget"] = widget
+        self.drag_data["start_y"] = event.y_root
+        self.drag_data["item"] = widget.winfo_id()
+        
+        # Change appearance to indicate dragging
+        widget.config(relief=tk.GROOVE)
+        
+    def _drag_motion(self, event):
+        """Handle dragging motion"""
+        if not self.drag_data["widget"]:
+            return
+            
+        # Calculate how far we've moved
+        delta_y = event.y_root - self.drag_data["start_y"]
+        
+        # Only move if we've dragged far enough
+        if abs(delta_y) > 10:
+            # Get all team containers and their positions
+            containers = self.teams_inner_frame.winfo_children()
+            positions = [(c, c.winfo_y()) for c in containers]
+            positions.sort(key=lambda x: x[1])  # Sort by Y position
+            
+            # Find current widget index in sorted position list
+            current_idx = next((i for i, (c, _) in enumerate(positions) if c == self.drag_data["widget"]), -1)
+            
+            # Calculate potential new position
+            new_idx = current_idx
+            if delta_y < 0 and current_idx > 0:  # Moving up
+                new_idx = current_idx - 1
+            elif delta_y > 0 and current_idx < len(positions) - 1:  # Moving down
+                new_idx = current_idx + 1
+                
+            # If position changed, update layout
+            if new_idx != current_idx:
+                # Unpack the widget
+                self.drag_data["widget"].pack_forget()
+                
+                # Repack at new position
+                containers.remove(self.drag_data["widget"])
+                containers.insert(new_idx, self.drag_data["widget"])
+                
+                # Repack all containers in the new order
+                for c in containers:
+                    c.pack_forget()
+                    
+                for c in containers:
+                    c.pack(side=tk.TOP, fill=tk.X, anchor="nw", 
+                           pady=self.ui_config["padding"], 
+                           padx=self.ui_config["padding"])
+                
+                # Reset drag start position for continuous dragging
+                self.drag_data["start_y"] = event.y_root
+                
+    def _drag_end(self, event):
+        """End dragging operation"""
+        if self.drag_data["widget"]:
+            # Restore appearance
+            self.drag_data["widget"].config(relief=tk.RAISED)
+            
+            # Clear drag data
+            self.drag_data["widget"] = None
+            self.drag_data["item"] = None 

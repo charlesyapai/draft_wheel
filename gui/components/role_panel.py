@@ -160,14 +160,14 @@ class RoleListPanel:
         
         self.role_frames = {}
         
-        # Create role frames
+        # Create role frames in a single column
         for role in role_names:
             # Create a frame for this role
             role_container = tk.Frame(self.roles_container, bd=2, relief=tk.RIDGE)
             role_container.pack(side=tk.TOP, fill=tk.X, 
-                              padx=self.ui_config["padding"], 
-                              pady=self.ui_config["padding"], 
-                              expand=True)
+                             padx=self.ui_config["padding"], 
+                             pady=self.ui_config["padding"],
+                             expand=True)
             
             # Title label
             lbl = tk.Label(
@@ -177,18 +177,42 @@ class RoleListPanel:
             )
             lbl.pack(side=tk.TOP, fill=tk.X)
             
-            # Add scrollbar to role listboxes
-            lb_frame = tk.Frame(role_container)
-            lb_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+            # Create a frame for the two-column player list
+            players_frame = tk.Frame(role_container)
+            players_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             
-            lb = tk.Listbox(lb_frame, height=self.ui_config["role_listbox_height"])
-            lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            # Create two listboxes side by side
+            # Use smaller font for listboxes
+            smaller_font = (self.ui_config["text_font_type"], self.ui_config["text_font_size"] - 1)
             
-            lb_scrollbar = ttk.Scrollbar(lb_frame, orient="vertical", command=lb.yview)
-            lb_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-            lb.configure(yscrollcommand=lb_scrollbar.set)
+            # Left column
+            left_frame = tk.Frame(players_frame)
+            left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             
-            self.role_frames[role] = lb
+            left_lb = tk.Listbox(left_frame, 
+                             height=self.ui_config["role_listbox_height"], 
+                             font=smaller_font)
+            left_lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            
+            left_scrollbar = ttk.Scrollbar(left_frame, orient="vertical", command=left_lb.yview)
+            left_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            left_lb.configure(yscrollcommand=left_scrollbar.set)
+            
+            # Right column
+            right_frame = tk.Frame(players_frame)
+            right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            
+            right_lb = tk.Listbox(right_frame, 
+                              height=self.ui_config["role_listbox_height"], 
+                              font=smaller_font)
+            right_lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            
+            right_scrollbar = ttk.Scrollbar(right_frame, orient="vertical", command=right_lb.yview)
+            right_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            right_lb.configure(yscrollcommand=right_scrollbar.set)
+            
+            # Store both listboxes for this role
+            self.role_frames[role] = (left_lb, right_lb)
     
     def update_role_lists(self, players_by_role, player_info=None):
         """
@@ -198,11 +222,18 @@ class RoleListPanel:
             players_by_role: Dict of {role: [player_names]}
             player_info: Dict of player information with MMR and preferences
         """
-        for role, listbox in self.role_frames.items():
-            listbox.delete(0, tk.END)
+        for role, listbox_pair in self.role_frames.items():
+            left_lb, right_lb = listbox_pair
+            left_lb.delete(0, tk.END)
+            right_lb.delete(0, tk.END)
             
             if role in players_by_role:
-                for player in players_by_role[role]:
+                players = players_by_role[role]
+                # Split the players between the two columns
+                mid_point = len(players) // 2 + len(players) % 2  # Ceiling division
+                
+                # Fill left column
+                for i, player in enumerate(players[:mid_point]):
                     mmr = 0
                     pref = 1  # Default preference
                     
@@ -217,4 +248,22 @@ class RoleListPanel:
                                     pref = role_info[1]
                                     break
                     
-                    listbox.insert(tk.END, f"{pref} | {player} | {mmr}")
+                    left_lb.insert(tk.END, f"{pref} | {player} | {mmr}")
+                
+                # Fill right column
+                for i, player in enumerate(players[mid_point:]):
+                    mmr = 0
+                    pref = 1  # Default preference
+                    
+                    # Get player info if available
+                    if player_info and player in player_info:
+                        mmr = player_info[player]["mmr"]
+                        
+                        # Check roles preference
+                        if "roles" in player_info[player]:
+                            for role_info in player_info[player]["roles"]:
+                                if role_info[0] == role:
+                                    pref = role_info[1]
+                                    break
+                    
+                    right_lb.insert(tk.END, f"{pref} | {player} | {mmr}")
