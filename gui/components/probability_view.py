@@ -27,13 +27,43 @@ class ProbabilityView:
         
     def _create_probability_tree(self):
         """Create the probability tree view"""
-        # Label for section
-        tk.Label(
-            self.parent, 
-            text="Probabilities", 
-            bg=self.ui_config["frame_bg_color"],
-            font=(self.ui_config["text_font_type"], self.ui_config["subheader_font_size"], "bold")
-        ).grid(row=0, column=0, sticky="w")
+        # Label for section - with gaming style
+        header_frame = tk.Frame(self.parent, bg="#222222", bd=2, relief=tk.GROOVE)
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        
+        # Create a gradient header
+        header_canvas = tk.Canvas(header_frame, height=38, bg="#222222", 
+                                 highlightthickness=0)
+        header_canvas.pack(fill=tk.X, expand=True)
+        
+        # Draw gradient background
+        header_width = self.parent.winfo_width() or 300
+        header_canvas.create_rectangle(0, 0, header_width, 38, 
+                                      fill="#222222", outline="#444444", width=2)
+        
+        # Draw decorative accent lines
+        for i in range(0, header_width, 20):
+            header_canvas.create_line(i, 0, i+10, 38, fill="#333333", width=1)
+        
+        # Draw corner accents
+        corner_size = 10
+        accent_color = "#00aaff"
+        header_canvas.create_line(0, 0, corner_size, 0, fill=accent_color, width=2)
+        header_canvas.create_line(0, 0, 0, corner_size, fill=accent_color, width=2)
+        header_canvas.create_line(header_width, 0, header_width-corner_size, 0, 
+                                fill=accent_color, width=2)
+        header_canvas.create_line(header_width, 0, header_width, corner_size, 
+                                fill=accent_color, width=2)
+        
+        # Title with shadow effect
+        header_canvas.create_text(12, 20, text="PROBABILITIES", 
+                                 font=(self.ui_config["text_font_type"], 
+                                       self.ui_config["subheader_font_size"], "bold"),
+                                 fill="#000000", anchor="w")
+        header_canvas.create_text(10, 18, text="PROBABILITIES", 
+                                 font=(self.ui_config["text_font_type"], 
+                                       self.ui_config["subheader_font_size"], "bold"),
+                                 fill="#00aaff", anchor="w")
 
         # Prob tree with scrollbar
         prob_tree_frame = tk.Frame(self.parent)
@@ -168,8 +198,8 @@ class SigmoidChartView:
         # Create canvas for sigmoid chart
         self.sigmoid_canvas = tk.Canvas(parent, bg=ui_config["sigmoid_bg_color"])
         self.sigmoid_canvas.pack(fill=tk.BOTH, expand=True, 
-                                padx=ui_config["padding"]*2, 
-                                pady=ui_config["padding"]*2)
+                                padx=ui_config["padding"]*3,  # Increased padding 
+                                pady=ui_config["padding"]*3)  # Increased padding
         
         # Bind resize event
         self.sigmoid_canvas.bind("<Configure>", self._on_canvas_resize)
@@ -205,6 +235,9 @@ class SigmoidChartView:
         # If canvas is too small, skip drawing
         if w < 50 or h < 50:
             return
+        
+        # Create gaming background
+        self._draw_gaming_background(w, h)
             
         # Determine the MMR range and maximum probability
         min_mmr = float('inf')
@@ -234,152 +267,183 @@ class SigmoidChartView:
         if y_max_value < 0.05:
             y_max_value = 0.05  # minimal range
 
-        # Define axes padding
-        x_axis_pad = 50  # left margin for Y axis
-        y_axis_pad = 30  # bottom margin for X axis
-        top_pad = 25     # top padding
-        right_pad = 20   # right padding
+        # Define axes padding - increased left padding for y-axis label
+        x_axis_pad = 80  # left margin for Y axis - increased from 70
+        y_axis_pad = 40  # bottom margin for X axis
+        top_pad = 40     # top padding - increased from 30
+        right_pad = 40   # right padding - increased from 30
 
-        # Draw the X-axis (horizontal)
+        # Draw the grid first
+        self._draw_grid(w, h, x_axis_pad, y_axis_pad, top_pad, right_pad, min_mmr, max_mmr, y_max_value)
+
+        # Draw the X-axis (horizontal) with gaming aesthetic
         self.sigmoid_canvas.create_line(
             x_axis_pad, h - y_axis_pad,  # start
             w - right_pad, h - y_axis_pad,  # end
-            fill=self.ui_config["sigmoid_axis_color"], width=2
+            fill="#00aaff", width=2
         )
+        
+        # Draw tick marks and labels on X-axis
+        x_ticks = 5
+        mmr_range = max_mmr - min_mmr
+        for i in range(x_ticks + 1):
+            x_pos = x_axis_pad + ((w - x_axis_pad - right_pad) / x_ticks) * i
+            tick_mmr = min_mmr + (mmr_range / x_ticks) * i
+            
+            # Tick mark
+            self.sigmoid_canvas.create_line(
+                x_pos, h - y_axis_pad,
+                x_pos, h - y_axis_pad + 5,
+                fill="#00aaff", width=2
+            )
+            
+            # MMR label with shadow
+            self.sigmoid_canvas.create_text(
+                x_pos+1, h - y_axis_pad + 12,
+                text=f"{int(tick_mmr):,}",
+                font=(self.ui_config["text_font_type"], 10, "bold"),
+                fill="#000000", anchor="n"
+            )
+            self.sigmoid_canvas.create_text(
+                x_pos, h - y_axis_pad + 10,
+                text=f"{int(tick_mmr):,}",
+                font=(self.ui_config["text_font_type"], 10, "bold"),
+                fill="#cccccc", anchor="n"
+            )
 
-        # Draw the Y-axis (vertical)
+        # Draw the Y-axis (vertical) with gaming aesthetic
         self.sigmoid_canvas.create_line(
-            x_axis_pad, h - y_axis_pad,  # start
-            x_axis_pad, top_pad,  # end
-            fill=self.ui_config["sigmoid_axis_color"], width=2
+            x_axis_pad, h - y_axis_pad,
+            x_axis_pad, top_pad,
+            fill="#00aaff", width=2
         )
-
-        # Create conversion function from data to canvas coordinates
-        def to_canvas_coords(mmr_val, prob_val):
-            # X: left -> right
-            x_ratio = (mmr_val - min_mmr) / (max_mmr - min_mmr)
-            x = x_axis_pad + x_ratio * (w - right_pad - x_axis_pad)
-            
-            # Y: bottom -> top
-            y_ratio = prob_val / y_max_value
-            y = (h - y_axis_pad) - y_ratio * ((h - y_axis_pad) - top_pad)
-            
-            return x, y
-
-        # Draw grid lines
-        grid_color = self.ui_config["sigmoid_grid_color"]
         
-        # Horizontal grid lines (probability)
-        num_h_lines = 5
-        for i in range(1, num_h_lines + 1):
-            prob_val = (i / num_h_lines) * y_max_value
-            _, y = to_canvas_coords(min_mmr, prob_val)
+        # Draw tick marks and labels on Y-axis
+        y_ticks = 5
+        for i in range(y_ticks + 1):
+            y_pos = h - y_axis_pad - ((h - y_axis_pad - top_pad) / y_ticks) * i
+            tick_prob = (y_max_value / y_ticks) * i
             
+            # Tick mark
             self.sigmoid_canvas.create_line(
-                x_axis_pad, y,
-                w - right_pad, y,
-                fill=grid_color, dash=(2, 4)
+                x_axis_pad, y_pos,
+                x_axis_pad - 5, y_pos,
+                fill="#00aaff", width=2
             )
             
-            # Label
-            prob_pct = int(prob_val * 100)
+            # Probability label with shadow
             self.sigmoid_canvas.create_text(
-                x_axis_pad - 5, y,
-                text=f"{prob_pct}%",
-                fill=self.ui_config["sigmoid_text_color"],
-                anchor="e",
-                font=(self.ui_config["text_font_type"], self.ui_config["text_font_size"])
+                x_axis_pad - 11, y_pos+1,
+                text=f"{tick_prob:.1%}",
+                font=(self.ui_config["text_font_type"], 10, "bold"),
+                fill="#000000", anchor="e"
+            )
+            self.sigmoid_canvas.create_text(
+                x_axis_pad - 10, y_pos,
+                text=f"{tick_prob:.1%}",
+                font=(self.ui_config["text_font_type"], 10, "bold"),
+                fill="#cccccc", anchor="e"
             )
             
-        # Vertical grid lines (MMR)
-        mmr_step = 500 if (max_mmr - min_mmr) < 3000 else 1000
+        # Draw axis titles with gaming aesthetic
+        # X-axis title
+        self.sigmoid_canvas.create_text(
+            w/2+1, h-5,
+            text="MMR",
+            font=(self.ui_config["text_font_type"], 12, "bold"),
+            fill="#000000", anchor="s"
+        )
+        self.sigmoid_canvas.create_text(
+            w/2, h-7,
+            text="MMR",
+            font=(self.ui_config["text_font_type"], 12, "bold"),
+            fill="#00aaff", anchor="s"
+        )
         
-        for mmr_val in range(int(min_mmr // mmr_step) * mmr_step, 
-                             int(max_mmr) + mmr_step, 
-                             mmr_step):
-            if mmr_val < min_mmr or mmr_val > max_mmr:
-                continue
-                
-            x, _ = to_canvas_coords(mmr_val, 0)
+        # Y-axis title - adjusted position to avoid cutting off
+        self.sigmoid_canvas.create_text(
+            25, h/2,  # Moved from 10 to 25 to give more space
+            text="PROBABILITY",
+            font=(self.ui_config["text_font_type"], 12, "bold"),
+            fill="#00aaff", angle=90, anchor="s"
+        )
+        
+        # Draw ideal MMR reference line as a thin dotted line
+        if ideal_mmr > 0:
+            x_ideal = self._mmr_to_x(ideal_mmr, min_mmr, max_mmr, x_axis_pad, w - right_pad)
             
-            self.sigmoid_canvas.create_line(
-                x, h - y_axis_pad,
-                x, top_pad,
-                fill=grid_color, dash=(2, 4)
-            )
-            
-            # Label
-            self.sigmoid_canvas.create_text(
-                x, h - y_axis_pad + 15,
-                text=str(mmr_val),
-                fill=self.ui_config["sigmoid_text_color"],
-                anchor="n",
-                font=(self.ui_config["text_font_type"], self.ui_config["text_font_size"])
-            )
-
-        # Draw the ideal MMR line
-        if ideal_mmr >= min_mmr and ideal_mmr <= max_mmr:
-            x_ideal, _ = to_canvas_coords(ideal_mmr, 0)
+            # Create thin dotted red line
             self.sigmoid_canvas.create_line(
                 x_ideal, h - y_axis_pad,
                 x_ideal, top_pad,
-                fill=self.ui_config["sigmoid_ideal_line_color"], width=2
+                width=1,
+                fill="#ff0000",
+                dash=(3, 3)  # Create dotted line pattern
             )
             
-            # Label at top
+            # Draw label for ideal MMR at the bottom instead of top
             self.sigmoid_canvas.create_text(
-                x_ideal, top_pad - 10,
-                text=f"Ideal: {int(ideal_mmr)}",
-                fill=self.ui_config["sigmoid_ideal_line_color"],
-                anchor="s",
-                font=(self.ui_config["text_font_type"], self.ui_config["text_font_size"], "bold")
+                x_ideal+1, h - y_axis_pad - 15,  # Moved up above X axis
+                text=f"Ideal MMR: {int(ideal_mmr):,}",
+                font=(self.ui_config["text_font_type"], 10, "bold"),
+                fill="#000000", anchor="s"  # Changed anchor to south
+            )
+            self.sigmoid_canvas.create_text(
+                x_ideal, h - y_axis_pad - 16,  # Moved up above X axis
+                text=f"Ideal MMR: {int(ideal_mmr):,}",
+                font=(self.ui_config["text_font_type"], 10, "bold"),
+                fill="#ff0000", anchor="s"  # Changed anchor to south
             )
 
         # Draw data points
-        point_size = 6
-        for i, (player, mmr, _, prob) in enumerate(data_list):
-            x, y = to_canvas_coords(mmr, prob)
+        for player, mmr, _, prob in data_list:
+            # Calculate position
+            x = self._mmr_to_x(mmr, min_mmr, max_mmr, x_axis_pad, w - right_pad)
+            y = self._prob_to_y(prob, y_max_value, h - y_axis_pad, top_pad)
             
-            # Get player-specific color if available
-            point_color = self.player_colors.get(player, self.ui_config["sigmoid_point_color"])
+            player_color = self.player_colors.get(player, "#ffffff")
             
-            # Draw point
+            # Draw the dot
+            dot_size = 6
             self.sigmoid_canvas.create_oval(
-                x - point_size, y - point_size,
-                x + point_size, y + point_size,
-                fill=point_color, outline="white"
+                x-dot_size, y-dot_size, 
+                x+dot_size, y+dot_size, 
+                fill=player_color,
+                outline="#ffffff",
+                width=1
             )
             
-            # Draw player name
+            # Draw player name with shadow
             self.sigmoid_canvas.create_text(
-                x, y - point_size - 5,
+                x+1, y-dot_size-6,
                 text=player,
-                fill=self.ui_config["sigmoid_text_color"],
-                anchor="s",
-                font=(self.ui_config["text_font_type"], self.ui_config["text_font_size"])
+                font=(self.ui_config["text_font_type"], 9, "bold"),
+                fill="#000000", anchor="s"
             )
-
+            self.sigmoid_canvas.create_text(
+                x, y-dot_size-7,
+                text=player,
+                font=(self.ui_config["text_font_type"], 9, "bold"),
+                fill="#ffffff", anchor="s"
+            )
+            
         # Connect the points to form a curve, sorted by MMR
         sorted_data = sorted(data_list, key=lambda x: x[1])  # sort by MMR
         if sorted_data:
             curve_points = []
-            for player, mmr, _, prob in sorted_data:
-                x, y = to_canvas_coords(mmr, prob)
+            for _, mmr, _, prob in sorted_data:
+                x = self._mmr_to_x(mmr, min_mmr, max_mmr, x_axis_pad, w - right_pad)
+                y = self._prob_to_y(prob, y_max_value, h - y_axis_pad, top_pad)
                 curve_points.extend([x, y])
                 
             if len(curve_points) >= 4:  # Need at least 2 points
                 self.sigmoid_canvas.create_line(
                     *curve_points,
-                    fill=self.ui_config["sigmoid_line_color"], width=2, smooth=True
+                    fill="#00aaff", width=2, smooth=True
                 )
-                
-        # Draw title
-        self.sigmoid_canvas.create_text(
-            w / 2, top_pad - 5,
-            text="MMR vs Probability",
-            fill=self.ui_config["sigmoid_text_color"],
-            font=(self.ui_config["text_font_type"], self.ui_config["header_font_size"], "bold")
-        )
+        
+        # Draw chart title
+        self._draw_chart_title(w, "PROBABILITY DISTRIBUTION", top_pad-20)
     
     def clear(self):
         """Clear the sigmoid chart"""
@@ -394,4 +458,106 @@ class SigmoidChartView:
         Args:
             colors: Dict of {player: color}
         """
-        self.player_colors = colors.copy() 
+        self.player_colors = colors.copy()
+    
+    def _draw_gaming_background(self, w, h):
+        """Draw a gaming-style background with gradient and accents"""
+        # Draw dark background
+        self.sigmoid_canvas.create_rectangle(0, 0, w, h, fill="#222222", outline="")
+        
+        # Add subtle grid pattern
+        for i in range(0, w, 30):
+            self.sigmoid_canvas.create_line(i, 0, i, h, fill="#2a2a2a", width=1)
+        
+        for i in range(0, h, 30):
+            self.sigmoid_canvas.create_line(0, i, w, i, fill="#2a2a2a", width=1)
+        
+        # Draw border
+        self.sigmoid_canvas.create_rectangle(0, 0, w, h, fill="", outline="#444444", width=2)
+        
+        # Add corner accents
+        corner_size = 15
+        self.sigmoid_canvas.create_line(0, 0, corner_size, 0, fill="#00aaff", width=2)
+        self.sigmoid_canvas.create_line(0, 0, 0, corner_size, fill="#00aaff", width=2)
+        self.sigmoid_canvas.create_line(w, 0, w-corner_size, 0, fill="#00aaff", width=2)
+        self.sigmoid_canvas.create_line(w, 0, w, corner_size, fill="#00aaff", width=2)
+        self.sigmoid_canvas.create_line(0, h, corner_size, h, fill="#00aaff", width=2)
+        self.sigmoid_canvas.create_line(0, h, 0, h-corner_size, fill="#00aaff", width=2)
+        self.sigmoid_canvas.create_line(w, h, w-corner_size, h, fill="#00aaff", width=2)
+        self.sigmoid_canvas.create_line(w, h, w, h-corner_size, fill="#00aaff", width=2)
+    
+    def _draw_grid(self, w, h, x_axis_pad, y_axis_pad, top_pad, right_pad, min_mmr, max_mmr, y_max):
+        """Draw grid lines for the chart"""
+        # Draw horizontal grid lines
+        y_ticks = 5
+        for i in range(1, y_ticks + 1):
+            y_pos = h - y_axis_pad - ((h - y_axis_pad - top_pad) / y_ticks) * i
+            
+            # Dashed grid line
+            dash_pattern = (5, 3)
+            self.sigmoid_canvas.create_line(
+                x_axis_pad, y_pos,
+                w - right_pad, y_pos,
+                fill="#444444",
+                width=1,
+                dash=dash_pattern
+            )
+        
+        # Draw vertical grid lines
+        x_ticks = 5
+        mmr_range = max_mmr - min_mmr
+        for i in range(1, x_ticks + 1):
+            x_pos = x_axis_pad + ((w - x_axis_pad - right_pad) / x_ticks) * i
+            
+            # Dashed grid line
+            dash_pattern = (5, 3)
+            self.sigmoid_canvas.create_line(
+                x_pos, h - y_axis_pad,
+                x_pos, top_pad,
+                fill="#444444",
+                width=1,
+                dash=dash_pattern
+            )
+    
+    def _draw_chart_title(self, w, title, y_pos):
+        """Draw chart title with gaming aesthetic"""
+        title_width = len(title) * 10
+        padding = 15
+        
+        # Draw title background with adjusted position
+        self.sigmoid_canvas.create_rectangle(
+            w/2 - title_width/2 - padding,
+            y_pos - 10,  # Adjusted position
+            w/2 + title_width/2 + padding,
+            y_pos + 10,  # Adjusted position
+            fill="#191919",
+            outline="#00aaff",
+            width=2
+        )
+        
+        # Draw title text with shadow - adjusted position
+        self.sigmoid_canvas.create_text(
+            w/2+1, y_pos+1,
+            text=title,
+            font=(self.ui_config["text_font_type"], 11, "bold"),
+            fill="#000000"
+        )
+        self.sigmoid_canvas.create_text(
+            w/2, y_pos,
+            text=title,
+            font=(self.ui_config["text_font_type"], 11, "bold"),
+            fill="#00aaff"
+        )
+    
+    def _mmr_to_x(self, mmr, min_mmr, max_mmr, x_min, x_max):
+        """Convert MMR value to X coordinate"""
+        mmr_range = max_mmr - min_mmr
+        if mmr_range == 0:
+            return x_min
+        return x_min + ((mmr - min_mmr) / mmr_range) * (x_max - x_min)
+    
+    def _prob_to_y(self, prob, max_prob, y_max, y_min):
+        """Convert probability value to Y coordinate"""
+        if max_prob == 0:
+            return y_max
+        return y_max - (prob / max_prob) * (y_max - y_min) 

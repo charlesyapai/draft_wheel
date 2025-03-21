@@ -14,6 +14,10 @@ DEFAULT_UI_CONFIG = {
     "tree_font_size": 11,
     "tree_header_font_size": 10,
     
+    # Wheel Font Settings
+    "wheel_font_type": "Arial",  # Font for player names on the wheel
+    "wheel_font_size": 12,       # Size for player names on the wheel (bigger than default)
+    
     # Role Button Specific Settings
     "role_button_font_type": "Segoe UI",  # Modern clean font
     "role_button_font_size": 9,
@@ -35,7 +39,7 @@ DEFAULT_UI_CONFIG = {
     "sigmoid_ideal_line_color": "#00FF00",  # Bright green ideal line
     "button_fg_color": "brown",
     "button_select_color": "#FFD700",
-    "pointer_color": "red",
+    "pointer_color": "green",
     "banner_bg_color": "#CCCCCC",
     "teams_bg_color": "#F0F0F0",
     "team_selected_border_color": "#1E90FF",  # Bright blue for selected team
