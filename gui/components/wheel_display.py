@@ -60,8 +60,12 @@ class WheelDisplay:
         for idx, (p, start, end) in enumerate(segs):
             x1 = (start/100) * w
             x2 = (end/100) * w
-            color = self.player_colors.get(p, self._get_color(idx))
-            self.player_colors[p] = color
+            
+            # Use the existing color from player_colors or generate a new one
+            if p not in self.player_colors:
+                self.player_colors[p] = self._get_color(idx)
+                
+            color = self.player_colors[p]
             self.scale_canvas.create_rectangle(x1, 0, x2, h, fill=color, outline="")
 
             cx = (x1+x2)/2
@@ -93,18 +97,24 @@ class WheelDisplay:
         self.scale_segments = []
         self.player_colors = {}
     
-    def build_segments(self, probs):
+    def build_segments(self, probs, player_colors=None):
         """
         Build segments for wheel based on probabilities
         
         Args:
             probs: Dict of {player: probability}
+            player_colors: Dict of {player: color} (optional)
             
         Returns:
             list: List of (player, start_percent, end_percent) tuples
         """
         segs = []
         current = 0.0
+        
+        # Update player colors if provided
+        if player_colors:
+            self.player_colors = player_colors
+            
         for p, val in probs.items():
             width = val * 100.0
             segs.append((p, current, current+width))
