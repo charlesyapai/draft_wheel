@@ -365,15 +365,12 @@ class DraftGUI:
         # Update probability view
         self.probability_view.update_probabilities(probs, player_mmrs, ideal_mmr, role_prefs)
         
-        # Get player colors from probability view
-        player_colors = self.probability_view.get_player_colors()
-        
         # Build segments and draw wheel
-        segments = self.wheel_display.build_segments(probs, player_colors)
+        segments = self.wheel_display.build_segments(probs)
         self.wheel_display.draw_scale(segments)
         
         # Share player colors with sigmoid chart
-        self.sigmoid_chart.set_player_colors(player_colors)
+        self.sigmoid_chart.set_player_colors(self.probability_view.get_player_colors())
         
         # Draw sigmoid chart
         self.sigmoid_chart.draw_final_probability_curve(
