@@ -313,13 +313,16 @@ class WheelDisplay:
         else:
             self.parent.after(20, self._update_bounce)
     
-    def display_winner(self, player_name, color=None):
+    def display_winner(self, player_name, color=None, team_id=None, mmr=None, role=None):
         """
         Display the winner after spin completes
         
         Args:
             player_name: Name of the winning player
             color: Color to use for highlight (or None to use player's color)
+            team_id: Team the player was drafted to
+            mmr: Player's MMR
+            role: Role/position the player was drafted for
         """
         self.scale_canvas.delete("all")
         w = int(self.scale_canvas.winfo_width())
@@ -345,14 +348,14 @@ class WheelDisplay:
                 width=border_width
             )
         
-        # Create a highlight box for the player name
-        box_width = min(w * 0.8, 400)
-        box_height = min(h * 0.6, 100)
+        # Create a highlight box for player name only (make it smaller)
+        box_width = min(w * 0.9, 350)
+        box_height = min(h * 0.35, 80)
         box_x = w/2 - box_width/2
-        box_y = h/2 - box_height/2
+        box_y = h/2 - box_height/1.5  # Position higher to make room for details below
         
         # Draw the background box with gradient
-        gradient_steps = 20
+        gradient_steps = 25
         step_height = box_height / gradient_steps
         r, g, b = self._hex_to_rgb(display_color)
         
@@ -381,7 +384,7 @@ class WheelDisplay:
             box_x, box_y, box_x + box_width, box_y + box_height,
             fill="",
             outline="#ffffff",
-            width=2
+            width=2.5
         )
         
         # Draw corner accents
@@ -397,31 +400,63 @@ class WheelDisplay:
             self.scale_canvas.create_line(x1, y1, x2, y2, fill="#00aaff", width=3)
             self.scale_canvas.create_line(x1, y1, x3, y3, fill="#00aaff", width=3)
         
-        # Create winner text with shadow for better visibility (no rotation used to avoid black box)
-        text_id = self.scale_canvas.create_text(
-            w/2+2, h/2+2,
+        # Use a more impressive font - options that are likely to be available
+        name_font = "Palatino"  # Alternatives: "Georgia", "Copperplate", "Palatino"
+        grand_font = "Copperplate"  # Alternatives: "Georgia", "Copperplate", "Palatino"
+        
+        # Display team name at top instead of "DRAFTED"
+        if team_id:
+            self.scale_canvas.create_text(
+                w/2, box_y - 25,
+                text=f"TEAM {team_id.upper()}",
+                fill="#00aaff",
+                font=(grand_font, 
+                    self.wheel_font_size+6, "bold"),
+                anchor="center"
+            )
+        
+        # Player name with shadow (in the box) - BIGGER
+        self.scale_canvas.create_text(
+            w/2+2, box_y + box_height/2 + 2,
             text=player_name,
             fill="#000000",
-            font=(self.wheel_font_type, 
-                self.wheel_font_size+6, "bold"),
+            font=(name_font, 
+                self.wheel_font_size+12, "bold"),  # Increased size
             anchor="center"
         )
         
         self.scale_canvas.create_text(
-            w/2, h/2,
+            w/2, box_y + box_height/2,
             text=player_name,
             fill="#ffffff",
-            font=(self.wheel_font_type, 
-                self.wheel_font_size+6, "bold"),
+            font=(name_font, 
+                self.wheel_font_size+12, "bold"),  # Increased size
             anchor="center"
         )
         
-        # Add "WINNER" text
-        self.scale_canvas.create_text(
-            w/2, box_y - 20,
-            text="WINNER",
-            fill="#00aaff",
-            font=(self.wheel_font_type, 
-                self.wheel_font_size+4, "bold"),
-            anchor="center"
-        ) 
+        # Define spacing for details below the box
+        details_y = box_y + box_height + 30
+        line_height = int(self.wheel_font_size * 1.3)  # Slightly smaller spacing
+        
+        # Show details below the box - SMALLER
+        # Show MMR
+        if mmr is not None:
+            self.scale_canvas.create_text(
+                w/2, details_y,
+                text=f"{mmr} MMR",
+                fill="#ffffff",
+                font=(grand_font, 
+                    self.wheel_font_size, "bold"),  # Smaller size
+                anchor="center"
+            )
+        
+        # Show role/position
+        if role:
+            self.scale_canvas.create_text(
+                w/2, details_y + line_height,
+                text=f"{role}",
+                fill="#ffffff",
+                font=(grand_font, 
+                    self.wheel_font_size, "bold"),  # Smaller size
+                anchor="center"
+            ) 

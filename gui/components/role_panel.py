@@ -5,6 +5,7 @@ Handles the role selection and display
 """
 import tkinter as tk
 from tkinter import ttk
+from tkinter import font as tkfont  # Add proper font module import
 
 class RolePanel:
     """Component for displaying and selecting roles"""
@@ -126,6 +127,24 @@ class RoleListPanel:
         self.heading_color = "#FF00FF"  # Magenta for headings
         self.selection_color = "#4040A0"  # Selection background
         
+        # Display configuration with defaults
+        self.display_config = {
+            "font_family": "Courier",  # Default monospace font
+            "font_size": self.ui_config["text_font_size"],
+            "max_name_length": 9,  # Max name length before truncation
+            "truncated_length": 8,   # Show this many chars when truncating 
+            "position_width": 4,     # Width for position indicator
+            "name_width": 10,        # Width for player name field
+            "mmr_width": 5,          # Width for MMR value
+            "use_monospace": True    # Whether to force monospace
+        }
+        
+        # Update from ui_config if present
+        if "player_display" in self.ui_config:
+            for key, value in self.ui_config["player_display"].items():
+                if key in self.display_config:
+                    self.display_config[key] = value
+        
         # Configure custom scrollbar style for the theme
         style = ttk.Style()
         style.configure("Gaming.Vertical.TScrollbar", 
@@ -175,6 +194,21 @@ class RoleListPanel:
         """Handle mousewheel scrolling"""
         self.role_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
     
+    def set_display_config(self, config_dict):
+        """
+        Update display configuration
+        
+        Args:
+            config_dict: Dictionary with display configuration parameters
+        """
+        for key, value in config_dict.items():
+            if key in self.display_config:
+                self.display_config[key] = value
+        
+        # Rebuild role lists if they exist
+        if hasattr(self, 'role_frames') and self.role_frames:
+            self.build_role_lists(list(self.role_frames.keys()))
+    
     def build_role_lists(self, role_names):
         """
         Build role list frames
@@ -187,6 +221,21 @@ class RoleListPanel:
             widget.destroy()
         
         self.role_frames = {}
+        
+        # Get font based on configuration
+        font_family = self.display_config["font_family"]
+        font_size = self.display_config["font_size"]
+        
+        # If monospace is requested, find the best available monospace font
+        if self.display_config["use_monospace"]:
+            available_fonts = tkfont.families()
+            monospace_options = ["Courier", "Consolas", "Courier New", "Monaco", "DejaVu Sans Mono"]
+            for font in monospace_options:
+                if font in available_fonts:
+                    font_family = font
+                    break
+        
+        player_font = (font_family, font_size, "bold")
         
         # Create role frames in a single column
         for role in role_names:
@@ -212,10 +261,6 @@ class RoleListPanel:
             players_frame = tk.Frame(role_container, bg=self.frame_color)
             players_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             
-            # Create two listboxes side by side
-            # Use bolder/larger font for listboxes
-            player_font = (self.ui_config["text_font_type"], self.ui_config["text_font_size"], "bold")
-            
             # Left column
             left_frame = tk.Frame(players_frame, bg=self.frame_color)
             left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -228,15 +273,19 @@ class RoleListPanel:
                              selectbackground=self.selection_color,  # Purple selection
                              selectforeground="#FFFFFF",  # White text for selected items
                              borderwidth=0,  # Remove border
-                             highlightthickness=0)  # Remove highlight border
+                             highlightthickness=0,  # Remove highlight border
+                             exportselection=0)  # Prevent selection from being cleared
             left_lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             
-            # Custom styled scrollbar
+            # Create scrollbar but don't pack it
             left_scrollbar = ttk.Scrollbar(left_frame, orient="vertical", 
                                         command=left_lb.yview,
                                         style="Gaming.Vertical.TScrollbar")
-            left_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            # DO NOT PACK THE SCROLLBAR
             left_lb.configure(yscrollcommand=left_scrollbar.set)
+            
+            # Bind mousewheel for scrolling without visible scrollbar
+            left_lb.bind("<MouseWheel>", lambda e, lb=left_lb: lb.yview_scroll(int(-1*(e.delta/120)), "units"))
             
             # Right column
             right_frame = tk.Frame(players_frame, bg=self.frame_color)
@@ -250,15 +299,19 @@ class RoleListPanel:
                               selectbackground=self.selection_color,  # Purple selection
                               selectforeground="#FFFFFF",  # White text for selected items
                               borderwidth=0,  # Remove border
-                              highlightthickness=0)  # Remove highlight border
+                              highlightthickness=0,  # Remove highlight border
+                              exportselection=0)  # Prevent selection from being cleared
             right_lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             
-            # Custom styled scrollbar
+            # Create scrollbar but don't pack it
             right_scrollbar = ttk.Scrollbar(right_frame, orient="vertical", 
                                          command=right_lb.yview,
                                          style="Gaming.Vertical.TScrollbar")
-            right_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            # DO NOT PACK THE SCROLLBAR
             right_lb.configure(yscrollcommand=right_scrollbar.set)
+            
+            # Bind mousewheel for scrolling without visible scrollbar
+            right_lb.bind("<MouseWheel>", lambda e, lb=right_lb: lb.yview_scroll(int(-1*(e.delta/120)), "units"))
             
             # Store both listboxes for this role
             self.role_frames[role] = (left_lb, right_lb)
@@ -271,7 +324,7 @@ class RoleListPanel:
                            pady=self.ui_config["padding"])
         
         # Load the banner image
-        self.set_banner_image("\\small_icon.png")
+        self.set_banner_image("small_icon.png")
     
     def update_role_lists(self, players_by_role, player_info=None):
         """
@@ -281,6 +334,13 @@ class RoleListPanel:
             players_by_role: Dict of {role: [player_names]}
             player_info: Dict of player information with MMR and preferences
         """
+        # Get display configuration values
+        max_name_length = self.display_config["max_name_length"]
+        truncated_length = self.display_config["truncated_length"]
+        position_width = self.display_config["position_width"]
+        name_width = self.display_config["name_width"]
+        mmr_width = self.display_config["mmr_width"]
+        
         for role, listbox_pair in self.role_frames.items():
             left_lb, right_lb = listbox_pair
             left_lb.delete(0, tk.END)
@@ -307,8 +367,31 @@ class RoleListPanel:
                                     pref = role_info[1]
                                     break
                     
-                    # Format string with preference as a highlight
-                    left_lb.insert(tk.END, f"{pref} | {player} | {mmr}")
+                    # Format MMR with commas for readability
+                    formatted_mmr = f"{mmr:,}" if mmr else "0"
+                    
+                    # Convert preference to position indicator
+                    position = ""
+                    if pref == 1:
+                        position = "1st"  # Fixed - no extra space
+                    elif pref == 2:
+                        position = "2nd"
+                    elif pref == 3:
+                        position = "3rd"
+                    elif pref >= 4:
+                        position = f"{pref}th"
+                    else:
+                        position = "--"  # For zero or negative preference
+                    
+                    # Truncate long player names and ensure consistent spacing
+                    if len(player) > max_name_length:
+                        display_name = player[:truncated_length] + ".."
+                    else:
+                        display_name = player
+                        
+                    # Format using configurable widths
+                    entry_text = f"{position:<{position_width}} {display_name:<{name_width}} {formatted_mmr:>{mmr_width}}"
+                    left_lb.insert(tk.END, entry_text)
                 
                 # Fill right column
                 for i, player in enumerate(players[mid_point:]):
@@ -326,8 +409,32 @@ class RoleListPanel:
                                     pref = role_info[1]
                                     break
                     
-                    right_lb.insert(tk.END, f"{pref} | {player} | {mmr}")
+                    # Format MMR with commas for readability
+                    formatted_mmr = f"{mmr:,}" if mmr else "0"
                     
+                    # Convert preference to position indicator
+                    position = ""
+                    if pref == 1:
+                        position = "1st"  # Fixed - no extra space
+                    elif pref == 2:
+                        position = "2nd"
+                    elif pref == 3:
+                        position = "3rd"
+                    elif pref >= 4:
+                        position = f"{pref}th"
+                    else:
+                        position = "--"  # For zero or negative preference
+                    
+                    # Truncate long player names and ensure consistent spacing
+                    if len(player) > max_name_length:
+                        display_name = player[:truncated_length] + ".."
+                    else:
+                        display_name = player
+                        
+                    # Format using configurable widths
+                    entry_text = f"{position:<{position_width}} {display_name:<{name_width}} {formatted_mmr:>{mmr_width}}"
+                    right_lb.insert(tk.END, entry_text)
+    
     def set_banner_image(self, image_path):
         """
         Set an image in the banner space

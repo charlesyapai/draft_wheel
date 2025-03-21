@@ -468,7 +468,24 @@ class DraftGUI:
         if chosen:
             # Get color for winner display
             player_color = self.wheel_display.player_colors.get(chosen, "red")
-            self.wheel_display.display_winner(chosen, player_color)
+            
+            # Get player's MMR
+            player_mmr = self.logic.all_players[chosen]["mmr"]
+            
+            # Get formatted position (role)
+            # Try to get role number mapping if available
+            role_display = self.pick_role
+            if hasattr(self.logic, 'role_to_number') and self.pick_role in self.logic.role_to_number:
+                role_display = f"{self.pick_role} (Pos {self.logic.role_to_number[self.pick_role]})"
+            
+            # Display winner with all details
+            self.wheel_display.display_winner(
+                chosen, 
+                player_color,
+                team_id=self.pick_team,
+                mmr=player_mmr,
+                role=role_display
+            )
             
         # Refresh all data
         self.refresh_all()
