@@ -72,13 +72,13 @@ class DraftGUI:
         # Set initial pane sizes
         self.master.update()
         left_sash_pos = int(self.ui_config["min_window_width"] * 0.25)  # 25% of min width
-        center_sash_pos = int(self.ui_config["min_window_width"] * 0.75)  # 75% of min width
+        center_sash_pos = int(self.ui_config["min_window_width"] * 1.5)  # 75% of min width
         self.main_paned.sashpos(0, left_sash_pos)
         self.main_paned.sashpos(1, center_sash_pos)
         
     def _configure_window(self):
         """Configure the root window"""
-        self.master.title("Draft Wheel Tool")
+        self.master.title("WildCards Drafter - Built by Chraos")
         self.master.resizable(True, True)
         
         # Set minimum window size to prevent controls from disappearing

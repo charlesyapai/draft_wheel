@@ -110,7 +110,7 @@ class ControlPanel:
 
         tk.Label(
             self.top_controls_frame_2, 
-            text="Lubricant:", 
+            text="WD-40:", 
             bg=self.ui_config["controls_bg_color"]
         ).pack(side=tk.LEFT, padx=self.ui_config["padding"])
         
