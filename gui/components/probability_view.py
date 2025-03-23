@@ -65,35 +65,138 @@ class ProbabilityView:
                                        self.ui_config["subheader_font_size"], "bold"),
                                  fill="#00aaff", anchor="w")
 
-        # Prob tree with scrollbar
-        prob_tree_frame = tk.Frame(self.parent)
+        # Create a stylish frame for the probabilities table with gaming aesthetic
+        prob_tree_frame = tk.Frame(self.parent, bg="#1E1E2F", bd=2)
         prob_tree_frame.grid(row=1, column=0, sticky="nsew")
+        
+        # Add decorative corner elements to frame
+        # Create decorative corners for the prob_tree_frame
+        self._add_decorative_corners(prob_tree_frame)
+        
+        # Create Treeview style
+        self._create_tree_style()
         
         self.prob_tree = ttk.Treeview(
             prob_tree_frame, 
             columns=("player", "mmr", "diff", "prob", "pref"),
-            show="headings"
+            show="headings",
+            style="Gaming.Treeview"
         )
-        self.prob_tree.heading("player", text="Player")
+        # Set column headings with gaming style
+        self.prob_tree.heading("player", text="PLAYER")
         self.prob_tree.heading("mmr", text="MMR")
-        self.prob_tree.heading("diff", text="Diff")
-        self.prob_tree.heading("prob", text="Probability")
-        self.prob_tree.heading("pref", text="Pref")
+        self.prob_tree.heading("diff", text="DIFF")
+        self.prob_tree.heading("prob", text="PROBABILITY")
+        self.prob_tree.heading("pref", text="PREF")
 
+        # Set column widths
         self.prob_tree.column("player", width=100)
         self.prob_tree.column("mmr", width=50)
         self.prob_tree.column("diff", width=50)
         self.prob_tree.column("prob", width=70)
         self.prob_tree.column("pref", width=40)
         
-        # Add scrollbars to prob_tree
-        prob_tree_yscroll = ttk.Scrollbar(prob_tree_frame, orient="vertical", command=self.prob_tree.yview)
-        prob_tree_xscroll = ttk.Scrollbar(prob_tree_frame, orient="horizontal", command=self.prob_tree.xview)
-        self.prob_tree.configure(yscrollcommand=prob_tree_yscroll.set, xscrollcommand=prob_tree_xscroll.set)
+        # Add stylish scrollbars
+        prob_tree_yscroll = ttk.Scrollbar(prob_tree_frame, orient="vertical", 
+                                         command=self.prob_tree.yview, 
+                                         style="Gaming.Vertical.TScrollbar")
+        prob_tree_xscroll = ttk.Scrollbar(prob_tree_frame, orient="horizontal", 
+                                         command=self.prob_tree.xview,
+                                         style="Gaming.Horizontal.TScrollbar")
+        self.prob_tree.configure(yscrollcommand=prob_tree_yscroll.set, 
+                                xscrollcommand=prob_tree_xscroll.set)
         
-        self.prob_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        prob_tree_yscroll.pack(side=tk.RIGHT, fill=tk.Y)
-        prob_tree_xscroll.pack(side=tk.BOTTOM, fill=tk.X)
+        self.prob_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=2, pady=2)
+        prob_tree_yscroll.pack(side=tk.RIGHT, fill=tk.Y, pady=2)
+        prob_tree_xscroll.pack(side=tk.BOTTOM, fill=tk.X, padx=2)
+    
+    def _add_decorative_corners(self, frame):
+        """Add decorative corner elements to a frame"""
+        # We'll add these corners when the frame is fully created
+        frame.update_idletasks()
+        width = frame.winfo_width() or 300
+        height = frame.winfo_height() or 200
+        
+        # Create a canvas overlay for decorative elements
+        # Use a specific tag for the canvas to ensure it's properly layered
+        corner_canvas = tk.Canvas(frame, bg="#1E1E2F", highlightthickness=0)
+        corner_canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        
+        # Draw corner accents
+        corner_size = 15
+        accent_color = "#00aaff"
+        
+        # Top-left corner
+        corner_canvas.create_line(0, 0, corner_size, 0, fill=accent_color, width=2)
+        corner_canvas.create_line(0, 0, 0, corner_size, fill=accent_color, width=2)
+        
+        # Top-right corner
+        corner_canvas.create_line(width, 0, width-corner_size, 0, fill=accent_color, width=2)
+        corner_canvas.create_line(width, 0, width, corner_size, fill=accent_color, width=2)
+        
+        # Bottom-left corner
+        corner_canvas.create_line(0, height, corner_size, height, fill=accent_color, width=2)
+        corner_canvas.create_line(0, height, 0, height-corner_size, fill=accent_color, width=2)
+        
+        # Bottom-right corner
+        corner_canvas.create_line(width, height, width-corner_size, height, fill=accent_color, width=2)
+        corner_canvas.create_line(width, height, width, height-corner_size, fill=accent_color, width=2)
+        
+        # Instead of using lower(), which is causing the error,
+        # we'll ensure the canvas is at the back by lifting the tree view above it
+        # Store the canvas as an attribute so it's not garbage collected
+        self.corner_canvas = corner_canvas
+        
+        # Defer the stacking order adjustment until after all widgets are created
+        frame.after(100, lambda: self._adjust_stacking_order(frame))
+    
+    def _adjust_stacking_order(self, frame):
+        """Adjust the stacking order of the canvas"""
+        # Instead of using canvas.lower() which requires item IDs,
+        # we'll use the place_configure to set the canvas at the bottom of the stacking order
+        try:
+            # The proper way is to use lower on the widget itself in the tkinter stacking order
+            for child in frame.winfo_children():
+                if child != self.corner_canvas:
+                    child.lift()  # Lift all other children above our canvas
+        except Exception as e:
+            print(f"Warning: Could not adjust stacking order: {e}")
+            # If that fails, try a fallback approach - just make sure the corners don't interfere
+            self.corner_canvas.configure(highlightthickness=0)
+    
+    def _create_tree_style(self):
+        """Create a custom style for the treeview"""
+        style = ttk.Style()
+        
+        # Configure the Treeview style
+        style.configure("Gaming.Treeview",
+                      background="#1E1E2F",
+                      foreground="white",
+                      fieldbackground="#1E1E2F",
+                      borderwidth=0,
+                      font=(self.ui_config["text_font_type"], 
+                           self.ui_config["tree_font_size"], "bold"))
+        
+        # Configure the heading style
+        style.configure("Gaming.Treeview.Heading",
+                      background="#222233",
+                      foreground="#00aaff",
+                      relief="flat",
+                      font=(self.ui_config["text_font_type"], 
+                           self.ui_config["tree_header_font_size"], "bold"))
+        
+        # Configure scrollbar styles
+        style.configure("Gaming.Vertical.TScrollbar", 
+                      background="#222233",
+                      arrowcolor="#00aaff",
+                      bordercolor="#00aaff",
+                      troughcolor="#1E1E2F")
+        
+        style.configure("Gaming.Horizontal.TScrollbar", 
+                      background="#222233",
+                      arrowcolor="#00aaff",
+                      bordercolor="#00aaff",
+                      troughcolor="#1E1E2F")
         
     def update_probabilities(self, probs, player_mmrs, ideal_mmr, role_prefs=None):
         """
@@ -138,11 +241,14 @@ class ProbabilityView:
             color = self._get_color(idx)
             self.player_colors[p] = color
 
-            # Insert row into tree
-            style_name = f"ColorStyle_{idx}"
-            s = ttk.Style()
-            s.configure(style_name, background=color,
-                        font=(self.ui_config["text_font_type"], self.ui_config["text_font_size"], "bold"))
+            # Insert row into tree with custom style
+            style_name = f"PlayerRow_{idx}.Gaming.Treeview"
+            style = ttk.Style()
+            style.configure(style_name, 
+                          background=color,
+                          foreground="#FFFFFF",
+                          font=(self.ui_config["text_font_type"], 
+                               self.ui_config["tree_font_size"], "bold"))
 
             row_id = self.prob_tree.insert("", "end", values=(p, int(pm), int(diff_val), prob_str, pref))
             self.prob_tree.item(row_id, tags=(style_name,))

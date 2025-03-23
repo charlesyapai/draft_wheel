@@ -71,7 +71,7 @@ DEFAULT_UI_CONFIG = {
     "chart_right_weight": 1,
     
     # Team colors
-    "team_colors": ["#FFD700", "#ADFF2F", "#40E0D0", "#FF69B4", "#FF7F50", "#9ACD32", "#9370DB", "#FFB6C1"]
+    "team_colors": ["#00AAFF", "#33DD99", "#FF5522", "#9933FF", "#FFAA22", "#3366CC", "#DD3366", "#55CCBB"]
 }
 
 def load_config(config_file=None):
